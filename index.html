@@ -154,6 +154,7 @@ import WaveSurfer from 'https://unpkg.com/wavesurfer.js@7.12.12/dist/wavesurfer.
 
 const DRIVE_SCOPE = 'https://www.googleapis.com/auth/drive.readonly';
 const DEFAULT_FOLDER = '1AKSAV7x48gOS9lhCwzSsQDVUXsvmax7c';
+const DEFAULT_CLIENT_ID = '1086623877876-k9srrsnpolc12vj4ebm69s9eab6jf92e.apps.googleusercontent.com';
 
 const $ = (id) => document.getElementById(id);
 const el = {
@@ -216,7 +217,7 @@ function loading(on){
 }
 function cfg(){
   return {
-    clientId:(localStorage.getItem('tir_oauth_client_id')||'').trim(),
+    clientId:(localStorage.getItem('tir_oauth_client_id')||DEFAULT_CLIENT_ID).trim(),
     folderId:(localStorage.getItem('tir_drive_folder_id')||DEFAULT_FOLDER).trim()
   };
 }
