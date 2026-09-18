@@ -182,7 +182,7 @@ button{-webkit-tap-highlight-color:transparent}
 
         <div class="meter-row">
           <div class="meterbox"><div class="screen-legend">LEFT · VU</div><canvas id="vuLeft" width="300" height="180"></canvas></div>
-          <div class="spectrum-box"><div class="screen-legend">REALTIME SPECTRUM</div><canvas id="spectrum" width="700" height="180"></canvas></div>
+          <div class="spectrum-box"><div class="screen-legend">REALTIME SPECTRUM · 45 Hz–18 kHz</div><canvas id="spectrum" width="700" height="180"></canvas></div>
           <div class="meterbox"><div class="screen-legend">RIGHT · VU</div><canvas id="vuRight" width="300" height="180"></canvas></div>
         </div>
 
@@ -247,7 +247,7 @@ button{-webkit-tap-highlight-color:transparent}
     </div>
   </main>
 
-  <div class="footer">THE INFINITE ROOM · HI-FI CONSOLE · V4.1 · AUTO MONO/STEREO VU</div>
+  <div class="footer">THE INFINITE ROOM · HI-FI CONSOLE · V4.2 · MUSICAL SPECTRUM · AUTO MONO/STEREO VU</div>
 </div>
 
 <script src="https://accounts.google.com/gsi/client" async defer></script>
@@ -425,7 +425,7 @@ async function ensureAudioGraph(){
   if(!audioCtx){
     audioCtx=new (window.AudioContext||window.webkitAudioContext)();
     sourceNode=audioCtx.createMediaElementSource(audio);
-    spectrumAnalyser=audioCtx.createAnalyser();spectrumAnalyser.fftSize=256;spectrumAnalyser.smoothingTimeConstant=.82;
+    spectrumAnalyser=audioCtx.createAnalyser();spectrumAnalyser.fftSize=2048;spectrumAnalyser.smoothingTimeConstant=.80;spectrumAnalyser.minDecibels=-92;spectrumAnalyser.maxDecibels=-18;
     leftAnalyser=audioCtx.createAnalyser();rightAnalyser=audioCtx.createAnalyser();
     leftAnalyser.fftSize=1024;rightAnalyser.fftSize=1024;
     var split=audioCtx.createChannelSplitter(2);
@@ -481,14 +481,46 @@ function drawSpectrum(){
   var grad=spectrumCtx.createLinearGradient(0,h,0,0);grad.addColorStop(0,'#5e742f');grad.addColorStop(.55,'#c6923d');grad.addColorStop(1,'#f0c86f');
   spectrumCtx.fillStyle=grad;
   if(!spectrumAnalyser){drawIdleSpectrum();return}
+
   spectrumAnalyser.getByteFrequencyData(spectrumData);
+
+  // Musical spectrum mapping: 44 logarithmic bands from ~45 Hz to 18 kHz.
+  // This avoids wasting the rightmost bars on the near-empty 20–24 kHz
+  // region of 48 kHz music/MP3 files and makes the display behave like a
+  // real audio analyser rather than a raw FFT-bin plot.
   var bars=44,gap=3,bw=(w-gap*(bars-1))/bars,energy=0;
+  var sampleRate=(audioCtx&&audioCtx.sampleRate)||48000;
+  var binHz=sampleRate/spectrumAnalyser.fftSize;
+  var nyquist=sampleRate/2;
+  var minHz=45;
+  var maxHz=Math.min(18000,nyquist*.92);
+  var ratio=maxHz/minHz;
+
   for(var i=0;i<bars;i++){
-    var idx=Math.floor(Math.pow(i/(bars-1),1.45)*(spectrumData.length-1));
-    var v=spectrumData[idx]/255, bh=Math.max(2,v*(h-34));energy+=v;
+    var f0=minHz*Math.pow(ratio,i/bars);
+    var f1=minHz*Math.pow(ratio,(i+1)/bars);
+    var start=Math.max(1,Math.floor(f0/binHz));
+    var end=Math.min(spectrumData.length-1,Math.max(start,Math.ceil(f1/binHz)));
+
+    var sum=0,peak=0,count=0;
+    for(var b=start;b<=end;b++){
+      var x=spectrumData[b]/255;
+      sum+=x;
+      if(x>peak)peak=x;
+      count++;
+    }
+
+    var avg=count?sum/count:0;
+    // Blend band average with peak so transients remain lively without
+    // exaggerating a single FFT bin.
+    var v=Math.min(1,avg*.72+peak*.42);
+    var bh=Math.max(2,v*(h-34));
+    energy+=v;
     spectrumCtx.fillRect(i*(bw+gap),h-bh,bw,bh);
   }
-  energy/=bars;stage.style.boxShadow='0 34px 110px #000a, inset 0 1px rgba(255,255,255,.05), 0 0 '+Math.round(25+energy*65)+'px rgba(181,126,53,'+(0.05+energy*.18)+')';
+
+  energy/=bars;
+  stage.style.boxShadow='0 34px 110px #000a, inset 0 1px rgba(255,255,255,.05), 0 0 '+Math.round(25+energy*65)+'px rgba(181,126,53,'+(0.05+energy*.18)+')';
 }
 function drawIdleSpectrum(){
   var w=spectrumCanvas.width,h=spectrumCanvas.height,bars=44,gap=3,bw=(w-gap*(bars-1))/bars;
