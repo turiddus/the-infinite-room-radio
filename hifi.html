@@ -1,0 +1,565 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0b0a08">
+<title>The Infinite Room — Hi-Fi Console</title>
+<link rel="manifest" href="./manifest.webmanifest">
+<link rel="icon" href="./icon.svg" type="image/svg+xml">
+<style>
+:root{
+  --bg:#090907;--ink:#f2ead9;--muted:#968d7b;--metal:#b99758;--metal2:#6e542d;
+  --glass:#121712;--amber:#f2b24b;--green:#9fd479;--red:#d65749;--line:#3c3324;--energy:0;
+}
+*{box-sizing:border-box}
+html,body{margin:0;min-height:100%;background:#070806;color:var(--ink);font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif}
+body{
+  padding:env(safe-area-inset-top) 10px calc(14px + env(safe-area-inset-bottom));
+  background:
+    radial-gradient(1000px 560px at 50% -10%,rgba(186,132,55,.13),transparent 62%),
+    radial-gradient(700px 360px at 50% 38%,rgba(74,101,60,.09),transparent 65%),
+    linear-gradient(180deg,#090a08,#050605 76%);
+}
+button,input{font:inherit}
+button{-webkit-tap-highlight-color:transparent}
+.app{max-width:1280px;margin:auto}
+.topbar{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:12px 8px 16px}
+.brand .eyebrow{font-size:10px;letter-spacing:.34em;color:#caa96b;text-transform:uppercase}
+.brand h1{font-family:Georgia,Times,serif;font-weight:500;letter-spacing:.08em;margin:5px 0 0;font-size:clamp(22px,3vw,38px)}
+.brand .sub{font-size:11px;color:#837b6d;margin-top:6px;letter-spacing:.08em}
+.top-actions{display:flex;gap:8px}
+.icon-btn{width:44px;height:44px;border-radius:50%;border:1px solid #51442f;background:linear-gradient(145deg,#1b1914,#0e0f0c);color:#d9bf89;box-shadow:inset 0 1px rgba(255,255,255,.05),0 8px 30px #0008}
+
+.stage{
+  position:relative;border:1px solid #443824;border-radius:28px;overflow:hidden;
+  background:
+    linear-gradient(90deg,rgba(255,255,255,.02),transparent 15%,transparent 85%,rgba(255,255,255,.02)),
+    radial-gradient(circle at 50% 10%,rgba(221,172,91,.14),transparent 34%),
+    linear-gradient(180deg,#17150f 0%,#0c0e0a 45%,#080907 100%);
+  box-shadow:0 34px 110px #000a,inset 0 1px rgba(255,255,255,.05);
+  padding:clamp(14px,2.2vw,30px);
+}
+.stage:before{
+  content:"";position:absolute;inset:0;pointer-events:none;opacity:.3;
+  background-image:repeating-linear-gradient(90deg,transparent 0 48px,rgba(255,255,255,.012) 49px 50px);
+}
+.roomline{height:1px;background:linear-gradient(90deg,transparent,#735d34,transparent);margin:0 8% 18px}
+
+.console-grid{
+  position:relative;display:grid;grid-template-columns:minmax(150px,.72fr) minmax(330px,2.4fr) minmax(150px,.72fr);
+  gap:clamp(10px,1.8vw,24px);align-items:stretch;
+}
+.speaker,.deck{
+  border:1px solid #5a492e;background:linear-gradient(145deg,#201d15,#0b0c09 68%);
+  box-shadow:inset 0 0 0 2px #0a0b08,inset 0 0 36px #0008,0 24px 60px #0007;
+}
+.speaker{border-radius:24px;padding:clamp(12px,1.5vw,20px);display:flex;flex-direction:column;justify-content:center;gap:20px;min-height:430px}
+.speaker-label{text-align:center;color:#8d7750;font-family:Georgia,serif;font-size:11px;letter-spacing:.22em}
+.driver{
+  width:min(100%,240px);aspect-ratio:1;margin:auto;border-radius:50%;position:relative;
+  background:
+    radial-gradient(circle,#1a1c19 0 13%,#0c0e0b 14% 23%,#252821 24% 26%,#10120f 27% 46%,#33342b 47% 49%,#11130f 50% 66%,#060706 67%);
+  border:8px solid #171812;box-shadow:inset 0 0 0 2px #6f5c39,inset 0 0 42px #000,0 0 0 1px #0a0a08;
+}
+.driver:after{content:"";position:absolute;inset:32%;border-radius:50%;background:radial-gradient(circle at 38% 32%,#393a34,#080908 70%);box-shadow:0 0 0 2px #39352b}
+.tweeter{width:74px;aspect-ratio:1;border-radius:50%;margin:0 auto;background:radial-gradient(circle,#6f634b 0 7%,#151713 9% 42%,#5b4c31 44% 47%,#0b0c09 49%);border:4px solid #191811}
+
+.deck{border-radius:26px;padding:clamp(12px,2vw,24px);min-height:430px;display:flex;flex-direction:column;gap:14px}
+.marquee{border:1px solid #6a5634;border-radius:14px;padding:11px 14px;background:linear-gradient(180deg,#151a13,#080b08);box-shadow:inset 0 0 26px #000}
+.now-label{font-size:9px;letter-spacing:.3em;color:#a98c56;text-transform:uppercase}
+.track-title{font-family:Georgia,serif;font-size:clamp(19px,2.5vw,32px);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:3px}
+.track-meta{font-size:11px;color:#8d927e;margin-top:5px;display:flex;gap:10px;flex-wrap:wrap}
+.live-dot{display:inline-block;width:7px;height:7px;border-radius:50%;background:#5a5d52;margin-right:6px}
+.live-dot.on{background:#a6d979;box-shadow:0 0 12px #7cb45e}
+
+.meter-row{display:grid;grid-template-columns:1fr 1.8fr 1fr;gap:10px;align-items:stretch}
+.meterbox,.spectrum-box{
+  border:1px solid #5b482a;border-radius:14px;background:linear-gradient(180deg,#0f130d,#070907);
+  box-shadow:inset 0 0 28px #000;overflow:hidden;position:relative;
+}
+.meterbox canvas,.spectrum-box canvas{width:100%;height:100%;display:block}
+.meterbox{min-height:150px}
+.spectrum-box{min-height:150px}
+.screen-legend{position:absolute;top:7px;left:10px;font-size:8px;letter-spacing:.22em;color:#7c6b4c;z-index:2;pointer-events:none}
+
+.timeline{border:1px solid #504229;border-radius:14px;background:#0a0c09;padding:10px 12px}
+.time-row{display:flex;justify-content:space-between;color:#95866b;font-size:11px;font-variant-numeric:tabular-nums;margin-top:5px}
+.seek{width:100%;accent-color:#d7a951}
+.controls{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:14px}
+.transport{display:flex;justify-content:center;gap:10px}
+.control-btn{
+  width:52px;height:52px;border-radius:50%;border:1px solid #6b5633;color:#dbc08b;
+  background:radial-gradient(circle at 35% 28%,#343025,#14140f 55%,#090a08 75%);
+  box-shadow:inset 0 2px rgba(255,255,255,.07),inset 0 -5px 10px #0007,0 8px 20px #0007;
+}
+.control-btn.main{width:64px;height:64px;color:#17120a;background:radial-gradient(circle at 35% 28%,#f0c46c,#a77b35 60%,#60431e 78%);border-color:#e0bc72;font-size:22px}
+.control-btn:active{transform:translateY(1px) scale(.98)}
+.small-bank{display:flex;gap:8px;flex-wrap:wrap}
+.small-btn{border:1px solid #51442e;border-radius:9px;background:#12130f;color:#ad9c7b;padding:9px 11px;font-size:10px;letter-spacing:.08em}
+.small-btn.active{color:#f1ce86;border-color:#a87e3f;box-shadow:inset 0 0 15px #6e4c1833}
+
+.knob-wrap{display:flex;align-items:center;justify-content:flex-end;gap:12px}
+.knob{
+  width:58px;height:58px;border-radius:50%;position:relative;background:
+  repeating-conic-gradient(#6d5c3e 0 3deg,#15140f 3deg 8deg);
+  border:2px solid #7b6540;box-shadow:inset 0 0 0 9px #181711,inset 0 0 12px #000,0 5px 15px #0008
+}
+.knob:after{content:"";position:absolute;width:2px;height:18px;background:#e5c17d;left:28px;top:7px;transform-origin:1px 22px;transform:rotate(var(--knob-angle,-20deg));border-radius:2px}
+.volume{width:120px;accent-color:#b58a43}
+
+.lower-panel{display:grid;grid-template-columns:1.2fr .8fr;gap:12px;margin-top:16px}
+.queue-panel,.auth-panel{
+  border:1px solid #453922;border-radius:16px;background:rgba(9,10,8,.78);padding:14px;
+}
+.panel-title{display:flex;justify-content:space-between;align-items:center;gap:10px;font-size:10px;letter-spacing:.2em;color:#baa172;text-transform:uppercase;margin-bottom:10px}
+.badge{border:1px solid #55442a;border-radius:99px;padding:4px 8px;color:#8f835f;font-size:9px;letter-spacing:.06em}
+.queue{display:grid;gap:5px;max-height:190px;overflow:auto}
+.qitem{display:grid;grid-template-columns:28px 1fr auto;align-items:center;gap:8px;padding:8px 4px;border-bottom:1px solid #262319}
+.qnum{font-size:10px;color:#625b4d}.qname{font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.qplay{border:0;background:transparent;color:#c6a25d;font-size:10px}
+.notice{font-size:11px;line-height:1.55;color:#8f8b7e}
+.primary{width:100%;padding:12px;margin-top:10px;border-radius:10px;border:1px solid #d0a453;background:linear-gradient(180deg,#d2aa5c,#876126);color:#171108;font-weight:800}
+.secondary{width:100%;padding:10px;margin-top:8px;border-radius:10px;border:1px solid #55472f;background:#151610;color:#c2b391}
+.statusline{font-size:11px;color:#7f7a6d;margin-top:8px}
+.error{display:none;margin-top:9px;border:1px solid #73382f;background:#291411;color:#efb0a6;border-radius:9px;padding:9px;font-size:11px;line-height:1.4}.error.show{display:block}
+.settings{display:none;margin-top:12px;border-top:1px solid #362f20;padding-top:10px}.settings.show{display:block}
+.settings label{display:block;font-size:9px;letter-spacing:.14em;color:#88795e;text-transform:uppercase;margin:8px 0 4px}
+.field{width:100%;border:1px solid #4b402c;background:#0a0b08;color:#ddd1bb;border-radius:8px;padding:9px;font-size:11px}
+.footer{text-align:center;padding:15px;color:#544f44;font-size:9px;letter-spacing:.14em}
+
+@media(max-width:820px){
+  body{padding-left:6px;padding-right:6px}
+  .topbar{padding-left:8px;padding-right:8px}
+  .console-grid{grid-template-columns:1fr}
+  .speaker{display:none}
+  .deck{min-height:auto}
+  .meter-row{grid-template-columns:1fr 1.7fr 1fr}
+  .meterbox,.spectrum-box{min-height:118px}
+  .lower-panel{grid-template-columns:1fr}
+  .controls{grid-template-columns:1fr}
+  .small-bank{justify-content:center}
+  .knob-wrap{justify-content:center}
+  .transport{order:-1}
+}
+@media(max-width:440px){
+  .stage{padding:10px;border-radius:20px}
+  .deck{padding:10px;border-radius:18px}
+  .meter-row{grid-template-columns:1fr 1.4fr 1fr;gap:5px}
+  .meterbox,.spectrum-box{min-height:100px}
+  .track-title{font-size:20px}
+  .control-btn{width:48px;height:48px}.control-btn.main{width:60px;height:60px}
+  .small-btn{padding:8px 9px}
+}
+</style>
+</head>
+<body>
+<div class="app">
+  <header class="topbar">
+    <div class="brand">
+      <div class="eyebrow">Private AI Hi-Fi Radio</div>
+      <h1>THE INFINITE ROOM</h1>
+      <div class="sub" id="headerSub">Experimental Hi-Fi Console · Google Drive · Live Library</div>
+    </div>
+    <div class="top-actions"><button class="icon-btn" id="settingsBtn" title="Settings">⚙</button></div>
+  </header>
+
+  <main class="stage" id="stage">
+    <div class="roomline"></div>
+
+    <div class="console-grid">
+      <aside class="speaker">
+        <div class="speaker-label">REFERENCE MONITOR · L</div>
+        <div class="tweeter"></div>
+        <div class="driver"></div>
+      </aside>
+
+      <section class="deck">
+        <div class="marquee">
+          <div class="now-label"><span class="live-dot" id="liveDot"></span><span id="statusText">STANDBY</span></div>
+          <div class="track-title" id="trackTitle">The Infinite Room Hi-Fi Console</div>
+          <div class="track-meta"><span id="trackMeta">Connect to Google Drive to begin</span><span id="trackCount">0 tracks</span></div>
+        </div>
+
+        <div class="meter-row">
+          <div class="meterbox"><div class="screen-legend">LEFT · VU</div><canvas id="vuLeft" width="300" height="180"></canvas></div>
+          <div class="spectrum-box"><div class="screen-legend">REALTIME SPECTRUM</div><canvas id="spectrum" width="700" height="180"></canvas></div>
+          <div class="meterbox"><div class="screen-legend">RIGHT · VU</div><canvas id="vuRight" width="300" height="180"></canvas></div>
+        </div>
+
+        <div class="timeline">
+          <input class="seek" id="seek" type="range" min="0" max="1000" value="0" step="1">
+          <div class="time-row"><span id="currentTime">00:00</span><span id="duration">00:00</span></div>
+        </div>
+
+        <div class="controls">
+          <div class="small-bank">
+            <button class="small-btn active" id="shuffleBtn">SMART SHUFFLE</button>
+            <button class="small-btn" id="refreshBtn">LIVE SYNC</button>
+          </div>
+
+          <div class="transport">
+            <button class="control-btn" id="prevBtn" aria-label="Previous">◀◀</button>
+            <button class="control-btn main" id="playBtn" aria-label="Play/Pause">▶</button>
+            <button class="control-btn" id="nextBtn" aria-label="Next">▶▶</button>
+          </div>
+
+          <div class="knob-wrap">
+            <div>
+              <div style="font-size:9px;letter-spacing:.14em;color:#81745b;text-align:center;margin-bottom:4px">OUTPUT</div>
+              <div class="knob" id="knob"></div>
+            </div>
+            <input class="volume" id="volume" type="range" min="0" max="1" step="0.01" value=".82" aria-label="Volume">
+          </div>
+        </div>
+
+        <audio id="audio" preload="metadata"></audio>
+      </section>
+
+      <aside class="speaker">
+        <div class="speaker-label">REFERENCE MONITOR · R</div>
+        <div class="tweeter"></div>
+        <div class="driver"></div>
+      </aside>
+    </div>
+
+    <div class="lower-panel">
+      <section class="queue-panel">
+        <div class="panel-title"><span>Up Next</span><span class="badge">Live Library · end of track</span></div>
+        <div class="queue" id="queue"><div class="notice">The catalog will appear after Google authentication.</div></div>
+      </section>
+
+      <section class="auth-panel">
+        <div class="panel-title"><span>Drive Connection</span><span class="badge" id="authBadge">offline</span></div>
+        <div class="notice">The player reads the configured private Google Drive folder. The OAuth access token remains in the browser session.</div>
+        <button class="primary" id="googleBtn">SIGN IN WITH GOOGLE</button>
+        <button class="secondary" id="catalogBtn">REFRESH CATALOG</button>
+        <div class="statusline" id="syncInfo">No catalog loaded.</div>
+        <div class="error" id="error"></div>
+
+        <div class="settings" id="settings">
+          <label>Google OAuth Client ID</label>
+          <input class="field" id="clientId">
+          <label>Google Drive Folder ID</label>
+          <input class="field" id="folderId">
+          <button class="secondary" id="saveSettings">SAVE SETTINGS</button>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <div class="footer">THE INFINITE ROOM · HI-FI CONSOLE EXPERIMENT · V4 PREVIEW</div>
+</div>
+
+<script src="https://accounts.google.com/gsi/client" async defer></script>
+<script>
+(function(){
+'use strict';
+
+var DEFAULT_CLIENT_ID='1086623877876-k9srrsnpolc12vj4ebm69s9eab6jf92e.apps.googleusercontent.com';
+var DEFAULT_FOLDER='1AKSAV7x48gOS9lhCwzSsQDVUXsvmax7c';
+var DRIVE_SCOPE='https://www.googleapis.com/auth/drive.readonly';
+
+var $=function(id){return document.getElementById(id)};
+var audio=$('audio'), playBtn=$('playBtn'), prevBtn=$('prevBtn'), nextBtn=$('nextBtn');
+var seek=$('seek'), currentTime=$('currentTime'), durationEl=$('duration'), volume=$('volume');
+var trackTitle=$('trackTitle'), trackMeta=$('trackMeta'), trackCount=$('trackCount');
+var statusText=$('statusText'), liveDot=$('liveDot'), errorEl=$('error'), queueEl=$('queue');
+var syncInfo=$('syncInfo'), authBadge=$('authBadge'), settings=$('settings'), stage=$('stage');
+
+var accessToken=null, tokenClient=null, catalog=[], images=[], bag=[], history=[], currentIndex=-1;
+var isLoading=false, liveSyncBusy=false, liveTimer=null, currentObjectUrl=null;
+var blobCache=new Map(), cacheOrder=[];
+
+var audioCtx=null, sourceNode=null, spectrumAnalyser=null, leftAnalyser=null, rightAnalyser=null;
+var spectrumData=null, leftTime=null, rightTime=null, visualRAF=0;
+var spectrumCanvas=$('spectrum'), spectrumCtx=spectrumCanvas.getContext('2d');
+var vuLCanvas=$('vuLeft'), vuLCtx=vuLCanvas.getContext('2d');
+var vuRCanvas=$('vuRight'), vuRCtx=vuRCanvas.getContext('2d');
+
+function cfg(){
+  return {
+    clientId:(localStorage.getItem('tir_oauth_client_id')||'').trim()||DEFAULT_CLIENT_ID,
+    folderId:(localStorage.getItem('tir_drive_folder_id')||'').trim()||DEFAULT_FOLDER
+  };
+}
+function applyCfg(){
+  var c=cfg(); $('clientId').value=c.clientId; $('folderId').value=c.folderId;
+}
+function fmt(s){
+  if(!Number.isFinite(s)) return '00:00';
+  s=Math.max(0,Math.floor(s));
+  return String(Math.floor(s/60)).padStart(2,'0')+':'+String(s%60).padStart(2,'0');
+}
+function setStatus(text,on){
+  statusText.textContent=text;
+  liveDot.className='live-dot'+(on?' on':'');
+}
+function setError(msg){
+  errorEl.textContent=msg||'';
+  errorEl.classList.toggle('show',!!msg);
+}
+function escapeHtml(s){
+  return String(s).replace(/[&<>"']/g,function(m){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]});
+}
+function niceName(name){
+  return String(name||'').replace(/^\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}\s*-\s*/,'').replace(/\.(mp3|wav|m4a|flac|ogg)$/i,'').trim();
+}
+function shuffle(a){
+  for(var i=a.length-1;i>0;i--){var j=Math.floor(Math.random()*(i+1));var t=a[i];a[i]=a[j];a[j]=t}
+  return a;
+}
+function refillBag(){
+  bag=shuffle(catalog.map(function(_,i){return i}));
+  if(history.length && bag.length>1 && bag[0]===history[history.length-1]){var t=bag[0];bag[0]=bag[1];bag[1]=t}
+}
+function nextIndex(){if(!bag.length)refillBag();return bag.shift()}
+function updateQueue(){
+  if(!catalog.length){queueEl.innerHTML='<div class="notice">No tracks available.</div>';return}
+  if(!bag.length)refillBag();
+  queueEl.innerHTML=bag.slice(0,8).map(function(i,n){
+    return '<div class="qitem"><div class="qnum">'+String(n+1).padStart(2,'0')+'</div><div class="qname">'+escapeHtml(catalog[i].title)+'</div><button class="qplay" data-i="'+i+'">PLAY</button></div>';
+  }).join('');
+  queueEl.querySelectorAll('[data-i]').forEach(function(b){b.addEventListener('click',function(){loadIndex(Number(b.dataset.i),true)})});
+}
+function cachePut(id,blob){
+  blobCache.set(id,blob);cacheOrder=cacheOrder.filter(function(x){return x!==id});cacheOrder.push(id);
+  while(cacheOrder.length>3){blobCache.delete(cacheOrder.shift())}
+}
+function waitGoogle(timeout){
+  timeout=timeout||12000;
+  return new Promise(function(resolve,reject){
+    var started=Date.now();
+    (function tick(){
+      if(window.google&&google.accounts&&google.accounts.oauth2)return resolve();
+      if(Date.now()-started>timeout)return reject(new Error('Google Identity Services did not load.'));
+      setTimeout(tick,120);
+    })();
+  });
+}
+async function initTokenClient(){
+  var c=cfg();
+  await waitGoogle();
+  tokenClient=google.accounts.oauth2.initTokenClient({
+    client_id:c.clientId,
+    scope:DRIVE_SCOPE,
+    callback:async function(resp){
+      if(resp.error){setError('OAuth: '+(resp.error_description||resp.error));return}
+      accessToken=resp.access_token;
+      authBadge.textContent='connected';setStatus('DRIVE CONNECTED',true);
+      await refreshCatalog();
+    },
+    error_callback:function(err){setError('OAuth popup: '+((err&&err.type)||'unknown error'))}
+  });
+}
+async function requestToken(){
+  setError('');
+  if(!tokenClient)await initTokenClient();
+  tokenClient.requestAccessToken({prompt:'consent'});
+}
+async function apiFetch(url,opts){
+  if(!accessToken)throw new Error('AUTH_REQUIRED');
+  opts=opts||{};var h=new Headers(opts.headers||{});h.set('Authorization','Bearer '+accessToken);
+  var res=await fetch(url,Object.assign({},opts,{headers:h}));
+  if(res.status===401){accessToken=null;authBadge.textContent='expired';setStatus('SESSION EXPIRED',false);throw new Error('SESSION_EXPIRED')}
+  return res;
+}
+async function listFolderFiles(){
+  var folder=cfg().folderId, page='', files=[];
+  do{
+    var url=new URL('https://www.googleapis.com/drive/v3/files');
+    url.searchParams.set('q',"'"+folder+"' in parents and trashed = false");
+    url.searchParams.set('pageSize','1000');
+    url.searchParams.set('orderBy','createdTime desc');
+    url.searchParams.set('fields','nextPageToken,files(id,name,mimeType,size,createdTime,modifiedTime)');
+    url.searchParams.set('supportsAllDrives','true');url.searchParams.set('includeItemsFromAllDrives','true');
+    if(page)url.searchParams.set('pageToken',page);
+    var res=await apiFetch(url.toString());
+    if(!res.ok)throw new Error('Drive API '+res.status);
+    var data=await res.json();files.push.apply(files,data.files||[]);page=data.nextPageToken||'';
+  }while(page);
+  return files;
+}
+async function refreshCatalog(){
+  if(!accessToken)return requestToken();
+  if(isLoading)return;
+  isLoading=true;setStatus('SYNCING LIBRARY',true);setError('');
+  try{
+    var files=await listFolderFiles();
+    images=files.filter(function(f){return /^image\//.test(f.mimeType||'')});
+    catalog=files.filter(function(f){return /^audio\//.test(f.mimeType||'')||/\.(mp3|wav|m4a|flac|ogg)$/i.test(f.name||'')})
+      .map(function(f){f.title=niceName(f.name);return f});
+    refillBag();updateQueue();trackCount.textContent=catalog.length+' tracks';
+    syncInfo.textContent='Catalog loaded: '+catalog.length+' tracks.';
+    $('headerSub').textContent='Hi-Fi Console · Drive private · '+catalog.length+' tracks · Live Library';
+    setStatus(catalog.length?'RADIO READY':'FOLDER EMPTY',!!catalog.length);
+    if(currentIndex<0&&catalog.length){trackTitle.textContent='Press Play to begin';trackMeta.textContent='Private Google Drive library'}
+  }catch(e){
+    setError(e.message==='SESSION_EXPIRED'?'Google session expired. Sign in again.':'Unable to read Drive: '+e.message);
+    setStatus('DRIVE ERROR',false);
+  }finally{isLoading=false}
+}
+async function syncNewTracks(){
+  if(!accessToken||liveSyncBusy)return 0;
+  liveSyncBusy=true;
+  try{
+    var files=await listFolderFiles(), known=new Set(catalog.map(function(f){return f.id}));
+    var fresh=files.filter(function(f){return (/^audio\//.test(f.mimeType||'')||/\.(mp3|wav|m4a|flac|ogg)$/i.test(f.name||''))&&!known.has(f.id)})
+      .map(function(f){f.title=niceName(f.name);return f});
+    if(!fresh.length){syncInfo.textContent='Live sync: library already current.';return 0}
+    var start=catalog.length;catalog.push.apply(catalog,fresh);
+    var idx=fresh.map(function(_,n){return start+n});shuffle(idx);bag=idx.concat(bag);
+    trackCount.textContent=catalog.length+' tracks';updateQueue();
+    $('headerSub').textContent='Hi-Fi Console · Drive private · '+catalog.length+' tracks · Live Library';
+    syncInfo.textContent='Live sync: +'+fresh.length+' new track'+(fresh.length===1?'':'s')+'.';
+    return fresh.length;
+  }catch(e){return 0}finally{liveSyncBusy=false}
+}
+async function getBlob(track){
+  if(blobCache.has(track.id))return blobCache.get(track.id);
+  var res=await apiFetch('https://www.googleapis.com/drive/v3/files/'+encodeURIComponent(track.id)+'?alt=media&supportsAllDrives=true');
+  if(!res.ok)throw new Error('Audio download '+res.status);
+  var b=await res.blob();if(!b.size)throw new Error('Empty audio file');cachePut(track.id,b);return b;
+}
+async function ensureAudioGraph(){
+  if(!audioCtx){
+    audioCtx=new (window.AudioContext||window.webkitAudioContext)();
+    sourceNode=audioCtx.createMediaElementSource(audio);
+    spectrumAnalyser=audioCtx.createAnalyser();spectrumAnalyser.fftSize=256;spectrumAnalyser.smoothingTimeConstant=.82;
+    leftAnalyser=audioCtx.createAnalyser();rightAnalyser=audioCtx.createAnalyser();
+    leftAnalyser.fftSize=1024;rightAnalyser.fftSize=1024;
+    var split=audioCtx.createChannelSplitter(2);
+    sourceNode.connect(spectrumAnalyser);spectrumAnalyser.connect(audioCtx.destination);
+    sourceNode.connect(split);split.connect(leftAnalyser,0);split.connect(rightAnalyser,1);
+    spectrumData=new Uint8Array(spectrumAnalyser.frequencyBinCount);
+    leftTime=new Float32Array(leftAnalyser.fftSize);rightTime=new Float32Array(rightAnalyser.fftSize);
+  }
+  if(audioCtx.state==='suspended')await audioCtx.resume();
+}
+async function loadIndex(i,autoplay){
+  if(isLoading||!catalog.length)return;
+  isLoading=true;currentIndex=i;history.push(i);if(history.length>50)history.shift();
+  var t=catalog[i];trackTitle.textContent=t.title;trackMeta.textContent='Loading securely from Google Drive…';setStatus('LOADING TRACK',true);setError('');
+  try{
+    var blob=await getBlob(t);
+    if(currentObjectUrl)URL.revokeObjectURL(currentObjectUrl);
+    currentObjectUrl=URL.createObjectURL(blob);audio.src=currentObjectUrl;audio.load();
+    await new Promise(function(resolve,reject){
+      var ok=function(){cleanup();resolve()}, bad=function(){cleanup();reject(new Error('Audio decode failed'))};
+      var cleanup=function(){audio.removeEventListener('loadedmetadata',ok);audio.removeEventListener('error',bad)};
+      audio.addEventListener('loadedmetadata',ok,{once:true});audio.addEventListener('error',bad,{once:true});
+    });
+    durationEl.textContent=fmt(audio.duration);trackMeta.textContent='Google Drive · '+formatBytes(Number(t.size||blob.size));
+    setStatus('READY',true);updateQueue();setMediaSession(t);
+    if(autoplay){await ensureAudioGraph();await audio.play()}
+    prefetchNext();
+  }catch(e){setError(e.message==='SESSION_EXPIRED'?'Google session expired. Sign in again.':'Track load failed: '+e.message);setStatus('PLAYBACK ERROR',false)}
+  finally{isLoading=false}
+}
+function formatBytes(n){return n>1048576?(n/1048576).toFixed(1)+' MB':Math.round(n/1024)+' KB'}
+async function prefetchNext(){
+  if(!bag.length||!accessToken)return;
+  var t=catalog[bag[0]];if(!t||blobCache.has(t.id))return;
+  try{await getBlob(t)}catch(e){}
+}
+async function goNext(){if(catalog.length)await loadIndex(nextIndex(),true)}
+async function goPrev(){
+  if(history.length>1){history.pop();var i=history.pop();await loadIndex(i,true)}
+}
+function setMediaSession(t){
+  if(!('mediaSession'in navigator))return;
+  navigator.mediaSession.metadata=new MediaMetadata({title:t.title,artist:'The Infinite Room',album:'Private AI Radio'});
+}
+function rms(analyser,arr){
+  analyser.getFloatTimeDomainData(arr);var sum=0;
+  for(var i=0;i<arr.length;i++)sum+=arr[i]*arr[i];
+  return Math.sqrt(sum/arr.length);
+}
+function drawSpectrum(){
+  var w=spectrumCanvas.width,h=spectrumCanvas.height;
+  spectrumCtx.clearRect(0,0,w,h);
+  var grad=spectrumCtx.createLinearGradient(0,h,0,0);grad.addColorStop(0,'#5e742f');grad.addColorStop(.55,'#c6923d');grad.addColorStop(1,'#f0c86f');
+  spectrumCtx.fillStyle=grad;
+  if(!spectrumAnalyser){drawIdleSpectrum();return}
+  spectrumAnalyser.getByteFrequencyData(spectrumData);
+  var bars=44,gap=3,bw=(w-gap*(bars-1))/bars,energy=0;
+  for(var i=0;i<bars;i++){
+    var idx=Math.floor(Math.pow(i/(bars-1),1.45)*(spectrumData.length-1));
+    var v=spectrumData[idx]/255, bh=Math.max(2,v*(h-34));energy+=v;
+    spectrumCtx.fillRect(i*(bw+gap),h-bh,bw,bh);
+  }
+  energy/=bars;stage.style.boxShadow='0 34px 110px #000a, inset 0 1px rgba(255,255,255,.05), 0 0 '+Math.round(25+energy*65)+'px rgba(181,126,53,'+(0.05+energy*.18)+')';
+}
+function drawIdleSpectrum(){
+  var w=spectrumCanvas.width,h=spectrumCanvas.height,bars=44,gap=3,bw=(w-gap*(bars-1))/bars;
+  spectrumCtx.fillStyle='#33402a';
+  for(var i=0;i<bars;i++){var bh=5+Math.sin(i*.55)*2;spectrumCtx.fillRect(i*(bw+gap),h-bh,bw,bh)}
+}
+function drawVU(ctx,canvas,value,label){
+  var w=canvas.width,h=canvas.height;ctx.clearRect(0,0,w,h);
+  var cx=w/2,cy=h*.95,r=Math.min(w*.42,h*.82);
+  ctx.strokeStyle='#57472e';ctx.lineWidth=2;ctx.beginPath();ctx.arc(cx,cy,r,Math.PI*1.12,Math.PI*1.88);ctx.stroke();
+  for(var i=0;i<=10;i++){
+    var a=Math.PI*(1.12+.076*i),x1=cx+Math.cos(a)*r,y1=cy+Math.sin(a)*r,x2=cx+Math.cos(a)*(r-12),y2=cy+Math.sin(a)*(r-12);
+    ctx.strokeStyle=i>8?'#a94a3f':'#8d7448';ctx.lineWidth=i%5===0?3:1;ctx.beginPath();ctx.moveTo(x1,y1);ctx.lineTo(x2,y2);ctx.stroke();
+  }
+  ctx.font='16px Georgia';ctx.fillStyle='#a98b56';ctx.textAlign='center';ctx.fillText('VU',cx,cy-r*.27);
+  var norm=Math.max(0,Math.min(1,value*4.8));var ang=Math.PI*(1.12+.76*norm);
+  ctx.strokeStyle=norm>.82?'#d65b4a':'#e7c479';ctx.lineWidth=3;ctx.beginPath();ctx.moveTo(cx,cy);ctx.lineTo(cx+Math.cos(ang)*(r-18),cy+Math.sin(ang)*(r-18));ctx.stroke();
+  ctx.fillStyle='#c9ad73';ctx.beginPath();ctx.arc(cx,cy,7,0,Math.PI*2);ctx.fill();
+  ctx.font='10px system-ui';ctx.fillStyle='#6f644f';ctx.fillText(label,cx,20);
+}
+function animate(){
+  drawSpectrum();
+  var l=0,r=0;if(leftAnalyser){l=rms(leftAnalyser,leftTime);r=rms(rightAnalyser,rightTime)}
+  drawVU(vuLCtx,vuLCanvas,l,'LEFT CHANNEL');drawVU(vuRCtx,vuRCanvas,r,'RIGHT CHANNEL');
+  visualRAF=requestAnimationFrame(animate);
+}
+audio.addEventListener('timeupdate',function(){
+  currentTime.textContent=fmt(audio.currentTime);durationEl.textContent=fmt(audio.duration);
+  if(Number.isFinite(audio.duration)&&audio.duration>0)seek.value=Math.round(audio.currentTime/audio.duration*1000);
+});
+audio.addEventListener('play',function(){playBtn.textContent='❚❚';setStatus('ON AIR',true)});
+audio.addEventListener('pause',function(){playBtn.textContent='▶';if(!audio.ended)setStatus('PAUSED',true)});
+audio.addEventListener('ended',async function(){await syncNewTracks();await goNext()});
+
+playBtn.addEventListener('click',async function(){
+  if(!accessToken)return requestToken();
+  if(!catalog.length){await refreshCatalog();return}
+  if(currentIndex<0){await loadIndex(nextIndex(),true);return}
+  await ensureAudioGraph();if(audio.paused)await audio.play();else audio.pause();
+});
+prevBtn.addEventListener('click',goPrev);nextBtn.addEventListener('click',goNext);
+seek.addEventListener('input',function(){if(Number.isFinite(audio.duration))audio.currentTime=Number(seek.value)/1000*audio.duration});
+volume.addEventListener('input',function(){
+  audio.volume=Number(volume.value);localStorage.setItem('tir_radio_vol',volume.value);
+  var angle=-135+Number(volume.value)*270;$('knob').style.setProperty('--knob-angle',angle+'deg');
+});
+$('shuffleBtn').addEventListener('click',function(){refillBag();updateQueue();syncInfo.textContent='Smart Shuffle rebuilt.'});
+$('refreshBtn').addEventListener('click',async function(){var n=await syncNewTracks();syncInfo.textContent=n?'Live sync: +'+n+' new tracks.':'Live sync: library already current.'});
+$('catalogBtn').addEventListener('click',function(){return accessToken?refreshCatalog():requestToken()});
+$('googleBtn').addEventListener('click',requestToken);
+$('settingsBtn').addEventListener('click',function(){settings.classList.toggle('show')});
+$('saveSettings').addEventListener('click',async function(){
+  localStorage.setItem('tir_oauth_client_id',$('clientId').value.trim()||DEFAULT_CLIENT_ID);
+  localStorage.setItem('tir_drive_folder_id',$('folderId').value.trim()||DEFAULT_FOLDER);
+  tokenClient=null;accessToken=null;settings.classList.remove('show');authBadge.textContent='offline';setStatus('SETTINGS SAVED',false);
+  await initTokenClient();
+});
+
+if('mediaSession'in navigator){
+  navigator.mediaSession.setActionHandler('play',async function(){await ensureAudioGraph();audio.play()});
+  navigator.mediaSession.setActionHandler('pause',function(){audio.pause()});
+  navigator.mediaSession.setActionHandler('nexttrack',goNext);
+  navigator.mediaSession.setActionHandler('previoustrack',goPrev);
+}
+window.addEventListener('load',async function(){
+  applyCfg();
+  var sv=Number(localStorage.getItem('tir_radio_vol')||'.82');volume.value=String(sv);audio.volume=sv;volume.dispatchEvent(new Event('input'));
+  animate();
+  try{await initTokenClient()}catch(e){setError(e.message)}
+  if(!liveTimer)liveTimer=setInterval(async function(){if(accessToken&&catalog.length&&audio.paused&&!isLoading)await syncNewTracks()},5*60*1000);
+});
+})();
+</script>
+</body>
+</html>
