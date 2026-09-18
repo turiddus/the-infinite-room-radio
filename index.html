@@ -217,7 +217,7 @@ function loading(on){
 }
 function cfg(){
   return {
-    clientId:(localStorage.getItem('tir_oauth_client_id')||DEFAULT_CLIENT_ID).trim(),
+    clientId:((localStorage.getItem('tir_oauth_client_id')||'').trim() || DEFAULT_CLIENT_ID),
     folderId:(localStorage.getItem('tir_drive_folder_id')||DEFAULT_FOLDER).trim()
   };
 }
@@ -516,6 +516,7 @@ if('mediaSession' in navigator){
 }
 
 window.addEventListener('load',async()=>{
+  if(!((localStorage.getItem('tir_oauth_client_id')||'').trim())) localStorage.setItem('tir_oauth_client_id', DEFAULT_CLIENT_ID);
   applyCfg();
   if('serviceWorker' in navigator && location.protocol==='https:'){
     navigator.serviceWorker.register('./sw.js').catch(()=>{});
