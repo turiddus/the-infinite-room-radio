@@ -88,7 +88,7 @@
 <body>
 <div class="app">
   <div class="header">
-    <div><div class="eyebrow">Private Google Drive Radio</div><h1>THE INFINITE ROOM</h1><div class="sub" id="headerSub">OAuth · Drive API · WaveSurfer</div></div>
+    <div><div class="eyebrow">Private Google Drive Radio</div><h1>THE INFINITE ROOM</h1><div class="sub" id="headerSub">OAuth · Drive API · Live Library · WaveSurfer</div></div>
     <button class="iconbtn" id="settingsBtn" aria-label="Impostazioni">⚙</button>
   </div>
 
@@ -141,11 +141,11 @@
     </div>
 
     <div class="section">
-      <div class="sectitle"><b>Up next</b><span class="badge">random senza ripetizioni</span></div>
+      <div class="sectitle"><b>Up next</b><span class="badge">Live Library · fine traccia</span></div>
       <div class="queue" id="queue"><div class="help">Il catalogo apparirà dopo l'accesso Google.</div></div>
     </div>
   </div>
-  <div class="footer">THE INFINITE ROOM · Mobile AI Radio v3</div>
+  <div class="footer">THE INFINITE ROOM · Mobile AI Radio v3.1 · Live Library</div>
 </div>
 
 <script src="https://accounts.google.com/gsi/client" async defer></script>
@@ -181,6 +181,8 @@ let objectUrls = [];
 let audioCache = new Map();
 let cacheOrder = [];
 let isLoading = false;
+let liveSyncBusy = false;
+let liveSyncTimer = null;
 
 const wavesurfer = WaveSurfer.create({
   container: '#waveform',
@@ -341,7 +343,7 @@ async function refreshCatalog(){
     catalog=files.filter(f=>/^audio\//.test(f.mimeType||'') || /\.(mp3|wav|m4a|flac|ogg)$/i.test(f.name||''))
       .map(f=>({...f,title:niceName(f.name)}));
     el.count.textContent=catalog.length+' brani';
-    el.headerSub.textContent=`Drive privato · ${catalog.length} tracce · WaveSurfer 7.12.12`;
+    el.headerSub.textContent=`Drive privato · ${catalog.length} tracce · Live Library · WaveSurfer 7.12.12`;
     refillBag();
     updateQueue();
     setStatus(catalog.length?'radio pronta':'cartella vuota',catalog.length?'good':'warn');
@@ -358,6 +360,59 @@ async function refreshCatalog(){
     }
   }finally{loading(false)}
 }
+async function syncNewTracks({quiet=true}={}) {
+  if(!accessToken || liveSyncBusy) return 0;
+  liveSyncBusy=true;
+  try{
+    const files=await listFolderFiles();
+
+    // Aggiorna anche l'indice delle eventuali cover senza toccare il brano in riproduzione.
+    const imageIds=new Set(images.map(f=>f.id));
+    const freshImages=files.filter(f=>/^image\//.test(f.mimeType||'') && !imageIds.has(f.id));
+    if(freshImages.length) images.push(...freshImages);
+
+    // Live Library aggiunge soltanto i nuovi file: gli indici già usati da queue/history restano stabili.
+    const knownIds=new Set(catalog.map(f=>f.id));
+    const freshAudio=files
+      .filter(f=>(/^audio\//.test(f.mimeType||'') || /\.(mp3|wav|m4a|flac|ogg)$/i.test(f.name||'')) && !knownIds.has(f.id))
+      .map(f=>({...f,title:niceName(f.name)}));
+
+    if(!freshAudio.length) return 0;
+
+    const start=catalog.length;
+    catalog.push(...freshAudio);
+    const freshIndexes=freshAudio.map((_,n)=>start+n);
+    shuffle(freshIndexes);
+
+    // I nuovi brani entrano subito nella parte iniziale della rotazione.
+    const queued=new Set(bag);
+    bag=[...freshIndexes.filter(i=>!queued.has(i)), ...bag];
+
+    el.count.textContent=catalog.length+' brani';
+    el.headerSub.textContent=`Drive privato · ${catalog.length} tracce · Live Library · WaveSurfer 7.12.12`;
+    updateQueue();
+
+    if(!quiet && !wavesurfer.isPlaying()) {
+      setStatus(freshAudio.length+' nuovi brani','good');
+    }
+    return freshAudio.length;
+  }catch(e){
+    // Un errore di sincronizzazione live non deve interrompere la musica.
+    if(!quiet && e.message!=='SESSION_EXPIRED') {
+      setError('Live Library: '+e.message);
+    }
+    return 0;
+  }finally{
+    liveSyncBusy=false;
+  }
+}
+
+async function syncThenNext(){
+  // Una sola lettura della cartella alla fine di ogni traccia.
+  try{ await syncNewTracks({quiet:true}); }catch{}
+  await goNext();
+}
+
 function shuffle(a){
   for(let i=a.length-1;i>0;i--){
     const j=Math.floor(Math.random()*(i+1));
@@ -483,7 +538,7 @@ wavesurfer.on('ready',()=>{
 wavesurfer.on('timeupdate',t=>{el.cur.textContent=fmt(t)});
 wavesurfer.on('play',()=>{el.play.textContent='❚❚';setStatus('in onda','good')});
 wavesurfer.on('pause',()=>{el.play.textContent='▶';if(!isLoading)setStatus('pausa','good')});
-wavesurfer.on('finish',goNext);
+wavesurfer.on('finish',syncThenNext);
 wavesurfer.on('error',e=>{setError('WaveSurfer: '+e);setStatus('errore','warn')});
 
 el.play.addEventListener('click',async()=>{
@@ -522,6 +577,15 @@ window.addEventListener('load',async()=>{
     navigator.serviceWorker.register('./sw.js').catch(()=>{});
   }
   if(cfg().clientId) await initTokenClient();
+
+  // Fallback parsimonioso: ogni 5 minuti controlla Drive solo se la radio è in pausa.
+  if(!liveSyncTimer){
+    liveSyncTimer=setInterval(async()=>{
+      if(accessToken && catalog.length && !isLoading && !wavesurfer.isPlaying()){
+        await syncNewTracks({quiet:true});
+      }
+    }, 5*60*1000);
+  }
 });
 </script>
 </body>
