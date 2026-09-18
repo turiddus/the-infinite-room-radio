@@ -1,0 +1,526 @@
+<!doctype html>
+<html lang="it">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#0a0c11">
+  <meta name="color-scheme" content="dark">
+  <meta name="description" content="The Infinite Room — private AI radio powered by Google Drive">
+  <link rel="manifest" href="./manifest.webmanifest">
+  <link rel="icon" href="./icon.svg" type="image/svg+xml">
+  <title>The Infinite Room — AI Radio</title>
+  <style>
+    :root{
+      --bg:#080a0f;--panel:#10151d;--panel2:#151b26;--line:#283243;
+      --text:#f4f1ed;--muted:#8f99aa;--accent:#9b63ea;--accent2:#6b39b8;
+      --good:#58d49c;--warn:#f2bb60;--bad:#ff7180;
+    }
+    *{box-sizing:border-box}
+    html,body{margin:0;min-height:100%;background:
+      radial-gradient(850px 500px at 50% -10%,rgba(155,99,234,.18),transparent 58%),
+      linear-gradient(180deg,#090b10,#0e1219 54%,#090b10);color:var(--text);
+      font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif}
+    body{padding:env(safe-area-inset-top) 14px calc(18px + env(safe-area-inset-bottom))}
+    button,input{font:inherit}
+    button{-webkit-tap-highlight-color:transparent}
+    .app{max-width:760px;margin:auto}
+    .header{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;padding:18px 4px 14px}
+    .eyebrow{font-size:10px;letter-spacing:.26em;color:#a88cd2;text-transform:uppercase}
+    h1{font-size:29px;line-height:1.05;margin:6px 0 0;letter-spacing:.025em}
+    .sub{font-size:12px;color:var(--muted);margin-top:7px}
+    .iconbtn{border:1px solid var(--line);background:#111720;color:#fff;width:44px;height:44px;border-radius:13px}
+    .card{background:rgba(16,21,29,.94);border:1px solid var(--line);border-radius:25px;overflow:hidden;
+      box-shadow:0 28px 80px rgba(0,0,0,.34)}
+    .main{padding:20px}
+    .cover{width:min(68vw,340px);aspect-ratio:1;margin:2px auto 20px;border-radius:22px;
+      background:radial-gradient(circle at 29% 24%,rgba(188,144,255,.76),transparent 22%),
+      radial-gradient(circle at 72% 67%,rgba(63,165,255,.36),transparent 29%),
+      linear-gradient(135deg,#171227,#0d111b 55%,#261740);
+      box-shadow:0 22px 75px rgba(84,43,146,.26),inset 0 0 0 1px rgba(255,255,255,.08);
+      position:relative;overflow:hidden;background-size:cover;background-position:center}
+    .cover::after{content:"THE INFINITE ROOM";position:absolute;left:18px;bottom:16px;
+      color:rgba(255,255,255,.72);font-size:11px;letter-spacing:.23em;text-shadow:0 1px 8px #000}
+    .statusrow{display:flex;justify-content:center;align-items:center;gap:7px;margin-bottom:8px}
+    .dot{width:7px;height:7px;border-radius:50%;background:var(--muted)}
+    .dot.good{background:var(--good);box-shadow:0 0 14px rgba(88,212,156,.72)}
+    .dot.warn{background:var(--warn)}
+    .status{font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:#a9b2c0}
+    .title{text-align:center;font-size:24px;line-height:1.16;font-weight:770;min-height:56px}
+    .meta{text-align:center;color:var(--muted);font-size:12px;margin-top:8px;min-height:18px}
+    #waveform{margin-top:20px;border:1px solid var(--line);background:#090c12;border-radius:14px;overflow:hidden;padding:8px}
+    .times{display:flex;justify-content:space-between;padding:0 3px;margin-top:6px;color:#778397;font-size:11px;font-variant-numeric:tabular-nums}
+    .controls{display:flex;justify-content:center;align-items:center;gap:13px;margin:20px 0 13px}
+    .btn{width:49px;height:49px;border:1px solid #313b4e;border-radius:15px;background:#151c27;color:#fff;font-size:20px}
+    .play{width:63px;height:63px;border:0;border-radius:19px;background:linear-gradient(145deg,#a86bf3,#7a46ca);
+      box-shadow:0 13px 31px rgba(128,73,207,.38);font-size:25px}
+    .btn:active{transform:scale(.97)}
+    .row{display:flex;gap:10px;align-items:center}
+    .pill{flex:1;border:1px solid var(--line);background:#121823;border-radius:13px;padding:11px 12px;color:#c8d0dc;font-size:12px;text-align:center}
+    #vol{width:100%;margin-top:14px;accent-color:var(--accent)}
+    .section{padding:18px 20px;border-top:1px solid var(--line)}
+    .sectitle{display:flex;justify-content:space-between;gap:10px;align-items:center;margin-bottom:10px}
+    .sectitle b{font-size:12px;letter-spacing:.14em;text-transform:uppercase}
+    .badge{font-size:11px;padding:4px 8px;border-radius:999px;background:#211931;color:#c9a8f7}
+    .queue{max-height:285px;overflow:auto}
+    .qitem{display:grid;grid-template-columns:32px 1fr auto;gap:10px;align-items:center;padding:10px 0;border-bottom:1px solid #202735}
+    .qnum{font-size:11px;color:#697486;text-align:center}.qname{font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .qplay{border:0;background:transparent;color:#ae7df0;font-size:12px;padding:8px}
+    .signin{display:none;padding:18px 20px;border-top:1px solid var(--line);background:#0e131b}
+    .signin.show{display:block}
+    .notice{font-size:12px;line-height:1.55;color:#bec6d2}
+    .primary{width:100%;border:0;border-radius:13px;background:linear-gradient(145deg,#a86bf3,#7a46ca);color:white;padding:13px 14px;font-weight:750;margin-top:12px}
+    .secondary{width:100%;border:1px solid #39465b;border-radius:13px;background:#151c27;color:#eef0f5;padding:12px 14px;margin-top:9px}
+    .loadingbar{height:3px;background:#202635;margin-top:13px;border-radius:5px;overflow:hidden;display:none}
+    .loadingbar.on{display:block}.loadingbar span{display:block;width:32%;height:100%;background:var(--accent);animation:move 1.05s infinite ease-in-out}
+    @keyframes move{from{transform:translateX(-120%)}to{transform:translateX(410%)}}
+    .settings{display:none;padding:18px 20px;border-top:1px solid var(--line);background:#0d1219}.settings.show{display:block}
+    label{display:block;font-size:11px;color:#aeb7c5;margin:12px 0 6px;letter-spacing:.08em;text-transform:uppercase}
+    .field{width:100%;background:#090d13;border:1px solid #323c4e;color:#f3f4f7;border-radius:12px;padding:12px 13px;font-size:13px;outline:none}
+    .origin{word-break:break-all;color:#c7aaf0;background:#171222;border:1px solid #37274d;border-radius:10px;padding:9px 10px;font-size:11px}
+    .help{font-size:11px;color:#7f8a9b;line-height:1.5;margin-top:8px}
+    .error{display:none;margin-top:12px;padding:11px 12px;border:1px solid #73323e;background:#26151a;color:#ffc1c7;border-radius:11px;font-size:12px;line-height:1.45}
+    .error.show{display:block}
+    .toolbar{display:flex;gap:8px;margin-top:12px}.toolbar button{flex:1}
+    .footer{text-align:center;color:#5b6575;font-size:10px;padding:18px 0 8px}
+    @media(max-width:430px){h1{font-size:25px}.main{padding:17px}.title{font-size:21px}}
+  </style>
+</head>
+<body>
+<div class="app">
+  <div class="header">
+    <div><div class="eyebrow">Private Google Drive Radio</div><h1>THE INFINITE ROOM</h1><div class="sub" id="headerSub">OAuth · Drive API · WaveSurfer</div></div>
+    <button class="iconbtn" id="settingsBtn" aria-label="Impostazioni">⚙</button>
+  </div>
+
+  <div class="card">
+    <div class="main">
+      <div class="cover" id="cover"></div>
+      <div class="statusrow"><span class="dot" id="dot"></span><span class="status" id="status">non connessa</span></div>
+      <div class="title" id="title">La tua radio personale</div>
+      <div class="meta" id="meta">Accedi a Google Drive per iniziare</div>
+
+      <div id="waveform"></div>
+      <div class="times"><span id="cur">00:00</span><span id="dur">00:00</span></div>
+
+      <div class="controls">
+        <button class="btn" id="prev" aria-label="Precedente">⏮</button>
+        <button class="btn play" id="play" aria-label="Play/Pausa">▶</button>
+        <button class="btn" id="next" aria-label="Successiva">⏭</button>
+      </div>
+
+      <div class="row">
+        <div class="pill">🔀 Smart Shuffle</div>
+        <div class="pill" id="count">0 brani</div>
+      </div>
+      <input id="vol" type="range" min="0" max="1" step="0.01" value=".82" aria-label="Volume">
+      <div class="loadingbar" id="loadingbar"><span></span></div>
+      <div class="error" id="error"></div>
+    </div>
+
+    <div class="signin show" id="signin">
+      <div class="notice">
+        La radio legge esclusivamente la cartella Google Drive configurata. Il token OAuth rimane nella sessione del browser; nessuna password Google viene salvata nella pagina.
+      </div>
+      <button class="primary" id="googleBtn">ACCEDI CON GOOGLE</button>
+      <button class="secondary" id="refreshBtn">AGGIORNA CATALOGO</button>
+    </div>
+
+    <div class="settings" id="settings">
+      <div class="sectitle"><b>Configurazione</b><span class="badge">solo una volta</span></div>
+      <label>Google OAuth Client ID — Web application</label>
+      <input class="field" id="clientId" placeholder="xxxxxxxxxxxx-xxxxxxxx.apps.googleusercontent.com" autocomplete="off">
+      <label>Google Drive folder ID</label>
+      <input class="field" id="folderId" value="1AKSAV7x48gOS9lhCwzSsQDVUXsvmax7c" autocomplete="off">
+      <label>Authorized JavaScript origin da inserire in Google Cloud</label>
+      <div class="origin" id="originText"></div>
+      <div class="toolbar">
+        <button class="secondary" id="copyOrigin">COPIA ORIGIN</button>
+        <button class="secondary" id="saveSettings">SALVA</button>
+      </div>
+      <div class="help">Il Client ID non è una password e può essere memorizzato localmente. Non inserire mai un Client Secret in questa pagina.</div>
+    </div>
+
+    <div class="section">
+      <div class="sectitle"><b>Up next</b><span class="badge">random senza ripetizioni</span></div>
+      <div class="queue" id="queue"><div class="help">Il catalogo apparirà dopo l'accesso Google.</div></div>
+    </div>
+  </div>
+  <div class="footer">THE INFINITE ROOM · Mobile AI Radio v3</div>
+</div>
+
+<script src="https://accounts.google.com/gsi/client" async defer></script>
+<script type="module">
+import WaveSurfer from 'https://unpkg.com/wavesurfer.js@7.12.12/dist/wavesurfer.esm.js';
+
+const DRIVE_SCOPE = 'https://www.googleapis.com/auth/drive.readonly';
+const DEFAULT_FOLDER = '1AKSAV7x48gOS9lhCwzSsQDVUXsvmax7c';
+
+const $ = (id) => document.getElementById(id);
+const el = {
+  cover:$('cover'), status:$('status'), dot:$('dot'), title:$('title'), meta:$('meta'),
+  play:$('play'), prev:$('prev'), next:$('next'), count:$('count'), vol:$('vol'),
+  cur:$('cur'), dur:$('dur'), signin:$('signin'), settings:$('settings'),
+  settingsBtn:$('settingsBtn'), clientId:$('clientId'), folderId:$('folderId'),
+  originText:$('originText'), copyOrigin:$('copyOrigin'), saveSettings:$('saveSettings'),
+  googleBtn:$('googleBtn'), refreshBtn:$('refreshBtn'), queue:$('queue'),
+  loadingbar:$('loadingbar'), error:$('error'), headerSub:$('headerSub')
+};
+
+let accessToken = null;
+let tokenClient = null;
+let catalog = [];
+let images = [];
+let bag = [];
+let history = [];
+let current = null;
+let currentIndex = -1;
+let pendingAutoplay = false;
+let waveReady = false;
+let objectUrls = [];
+let audioCache = new Map();
+let cacheOrder = [];
+let isLoading = false;
+
+const wavesurfer = WaveSurfer.create({
+  container: '#waveform',
+  height: 88,
+  waveColor: '#4c586d',
+  progressColor: '#9b63ea',
+  cursorColor: '#f5edff',
+  cursorWidth: 1,
+  barWidth: 3,
+  barGap: 2,
+  barRadius: 3,
+  normalize: true,
+  dragToSeek: true,
+  interact: true,
+  mediaControls: false
+});
+
+function fmt(s){
+  if(!Number.isFinite(s)) return '00:00';
+  s=Math.max(0,Math.floor(s));
+  return String(Math.floor(s/60)).padStart(2,'0')+':'+String(s%60).padStart(2,'0');
+}
+function setStatus(text, mode=''){
+  el.status.textContent=text;
+  el.dot.className='dot'+(mode?' '+mode:'');
+}
+function setError(msg=''){
+  el.error.textContent=msg;
+  el.error.classList.toggle('show', !!msg);
+}
+function loading(on){
+  isLoading=on;
+  el.loadingbar.classList.toggle('on', on);
+}
+function cfg(){
+  return {
+    clientId:(localStorage.getItem('tir_oauth_client_id')||'').trim(),
+    folderId:(localStorage.getItem('tir_drive_folder_id')||DEFAULT_FOLDER).trim()
+  };
+}
+function applyCfg(){
+  const c=cfg();
+  el.clientId.value=c.clientId;
+  el.folderId.value=c.folderId;
+  el.originText.textContent=location.origin;
+  if(!c.clientId) el.settings.classList.add('show');
+}
+function saveCfg(){
+  localStorage.setItem('tir_oauth_client_id', el.clientId.value.trim());
+  localStorage.setItem('tir_drive_folder_id', el.folderId.value.trim()||DEFAULT_FOLDER);
+  tokenClient=null; accessToken=null;
+  setError('');
+  el.settings.classList.remove('show');
+  initTokenClient();
+}
+function waitForGoogle(timeout=12000){
+  return new Promise((resolve,reject)=>{
+    const started=Date.now();
+    const tick=()=>{
+      if(window.google?.accounts?.oauth2) return resolve();
+      if(Date.now()-started>timeout) return reject(new Error('Google Identity Services non si è caricato. Controlla la connessione Internet.'));
+      setTimeout(tick,120);
+    }; tick();
+  });
+}
+async function initTokenClient(){
+  const c=cfg();
+  if(!c.clientId) return false;
+  try{
+    await waitForGoogle();
+    tokenClient=google.accounts.oauth2.initTokenClient({
+      client_id:c.clientId,
+      scope:DRIVE_SCOPE,
+      callback:async(resp)=>{
+        if(resp.error){
+          setError('Google OAuth: '+(resp.error_description||resp.error));
+          setStatus('accesso fallito','warn'); return;
+        }
+        accessToken=resp.access_token;
+        sessionStorage.setItem('tir_oauth_granted','1');
+        setStatus('drive connesso','good');
+        el.signin.classList.remove('show');
+        await refreshCatalog();
+      },
+      error_callback:(err)=>{
+        setError('OAuth popup: '+(err?.type||'errore sconosciuto'));
+        setStatus('accesso fallito','warn');
+      }
+    });
+    return true;
+  }catch(e){
+    setError(e.message);
+    return false;
+  }
+}
+async function requestToken(interactive=true){
+  setError('');
+  const c=cfg();
+  if(!c.clientId){
+    el.settings.classList.add('show');
+    setError('Inserisci prima il Google OAuth Client ID.');
+    return;
+  }
+  if(!tokenClient && !(await initTokenClient())) return;
+  tokenClient.requestAccessToken({prompt: interactive ? 'consent' : ''});
+}
+async function apiFetch(url, opts={}){
+  if(!accessToken) throw new Error('AUTH_REQUIRED');
+  const headers=new Headers(opts.headers||{});
+  headers.set('Authorization','Bearer '+accessToken);
+  const res=await fetch(url,{...opts,headers});
+  if(res.status===401){
+    accessToken=null;
+    el.signin.classList.add('show');
+    setStatus('sessione scaduta','warn');
+    throw new Error('SESSION_EXPIRED');
+  }
+  return res;
+}
+async function listFolderFiles(){
+  const folder=cfg().folderId;
+  let token='';
+  const files=[];
+  do{
+    const q=`'${folder}' in parents and trashed = false`;
+    const fields='nextPageToken,files(id,name,mimeType,size,createdTime,modifiedTime,thumbnailLink)';
+    const url=new URL('https://www.googleapis.com/drive/v3/files');
+    url.searchParams.set('q',q);
+    url.searchParams.set('pageSize','1000');
+    url.searchParams.set('orderBy','createdTime desc');
+    url.searchParams.set('fields',fields);
+    url.searchParams.set('supportsAllDrives','true');
+    url.searchParams.set('includeItemsFromAllDrives','true');
+    if(token) url.searchParams.set('pageToken',token);
+    const res=await apiFetch(url.toString());
+    if(!res.ok) throw new Error('Drive API '+res.status+': '+await res.text());
+    const data=await res.json();
+    files.push(...(data.files||[]));
+    token=data.nextPageToken||'';
+  }while(token);
+  return files;
+}
+function niceName(name){
+  return name
+    .replace(/^\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}\s*-\s*/,'')
+    .replace(/\.(mp3|wav|m4a|flac|ogg)$/i,'')
+    .trim();
+}
+function keyName(name){
+  return niceName(name).toLowerCase().replace(/[^a-z0-9à-ž]+/gi,' ').trim();
+}
+async function refreshCatalog(){
+  if(!accessToken){await requestToken(false);return}
+  loading(true); setError(''); setStatus('sincronizzazione','warn');
+  try{
+    const files=await listFolderFiles();
+    images=files.filter(f=>/^image\//.test(f.mimeType||''));
+    catalog=files.filter(f=>/^audio\//.test(f.mimeType||'') || /\.(mp3|wav|m4a|flac|ogg)$/i.test(f.name||''))
+      .map(f=>({...f,title:niceName(f.name)}));
+    el.count.textContent=catalog.length+' brani';
+    el.headerSub.textContent=`Drive privato · ${catalog.length} tracce · WaveSurfer 7.12.12`;
+    refillBag();
+    updateQueue();
+    setStatus(catalog.length?'radio pronta':'cartella vuota',catalog.length?'good':'warn');
+    if(!current && catalog.length){
+      el.title.textContent='Tocca Play per iniziare';
+      el.meta.textContent=`${catalog.length} tracce nella cartella Drive`;
+    }
+  }catch(e){
+    if(e.message==='SESSION_EXPIRED'){
+      setError('La sessione Google è scaduta. Premi ACCEDI CON GOOGLE.');
+    }else{
+      setError('Impossibile leggere la cartella Drive: '+e.message);
+      setStatus('errore drive','warn');
+    }
+  }finally{loading(false)}
+}
+function shuffle(a){
+  for(let i=a.length-1;i>0;i--){
+    const j=Math.floor(Math.random()*(i+1));
+    [a[i],a[j]]=[a[j],a[i]];
+  }
+  return a;
+}
+function refillBag(){
+  bag=shuffle(catalog.map((_,i)=>i));
+  if(history.length && bag.length>1 && bag[0]===history[history.length-1]){
+    [bag[0],bag[1]]=[bag[1],bag[0]];
+  }
+}
+function nextIndex(){
+  if(!bag.length) refillBag();
+  return bag.shift();
+}
+function updateQueue(){
+  if(!catalog.length){
+    el.queue.innerHTML='<div class="help">Nessuna traccia disponibile.</div>'; return;
+  }
+  if(!bag.length) refillBag();
+  el.queue.innerHTML=bag.slice(0,9).map((i,n)=>`
+    <div class="qitem">
+      <div class="qnum">${String(n+1).padStart(2,'0')}</div>
+      <div class="qname">${escapeHtml(catalog[i].title)}</div>
+      <button class="qplay" data-index="${i}">PLAY</button>
+    </div>`).join('');
+  el.queue.querySelectorAll('[data-index]').forEach(b=>{
+    b.addEventListener('click',()=>loadIndex(Number(b.dataset.index),true));
+  });
+}
+function escapeHtml(s){
+  return String(s).replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+}
+function cachePut(id,blob){
+  audioCache.set(id,blob);
+  cacheOrder=cacheOrder.filter(x=>x!==id); cacheOrder.push(id);
+  while(cacheOrder.length>3){
+    const old=cacheOrder.shift(); audioCache.delete(old);
+  }
+}
+async function getAudioBlob(track){
+  if(audioCache.has(track.id)) return audioCache.get(track.id);
+  const res=await apiFetch(`https://www.googleapis.com/drive/v3/files/${encodeURIComponent(track.id)}?alt=media&supportsAllDrives=true`);
+  if(!res.ok) throw new Error('Download MP3 '+res.status);
+  const blob=await res.blob();
+  if(!blob.size) throw new Error('File audio vuoto');
+  cachePut(track.id,blob);
+  return blob;
+}
+function findCover(track){
+  const k=keyName(track.name);
+  return images.find(img=>keyName(img.name)===k) ||
+         images.find(img=>keyName(img.name).includes(k) || k.includes(keyName(img.name))) || null;
+}
+async function loadCover(track){
+  el.cover.style.backgroundImage='';
+  const img=findCover(track);
+  if(!img) return null;
+  try{
+    const res=await apiFetch(`https://www.googleapis.com/drive/v3/files/${encodeURIComponent(img.id)}?alt=media&supportsAllDrives=true`);
+    if(!res.ok) return null;
+    const blob=await res.blob();
+    const u=URL.createObjectURL(blob); objectUrls.push(u);
+    while(objectUrls.length>6) URL.revokeObjectURL(objectUrls.shift());
+    el.cover.style.backgroundImage=`url("${u}")`;
+    return u;
+  }catch{return null}
+}
+async function loadIndex(i,autoplay=true){
+  if(isLoading || !catalog.length) return;
+  currentIndex=i; current=catalog[i];
+  history.push(i); if(history.length>50) history.shift();
+  pendingAutoplay=autoplay;
+  el.title.textContent=current.title;
+  el.meta.textContent='Scaricamento sicuro da Google Drive…';
+  setStatus('caricamento','warn'); setError(''); loading(true);
+  updateQueue();
+  try{
+    const [blob,coverUrl]=await Promise.all([getAudioBlob(current),loadCover(current)]);
+    await wavesurfer.loadBlob(blob);
+    el.meta.textContent=`Google Drive · ${formatBytes(Number(current.size||blob.size))}`;
+    setStatus('pronta','good');
+    if('mediaSession' in navigator){
+      const artwork=coverUrl?[{src:coverUrl,sizes:'512x512'}]:[];
+      navigator.mediaSession.metadata=new MediaMetadata({
+        title:current.title,artist:'The Infinite Room',album:'AI Radio',artwork
+      });
+    }
+    if(autoplay) await wavesurfer.play();
+    prefetchNext();
+  }catch(e){
+    if(e.message==='SESSION_EXPIRED'){
+      setError('Sessione Google scaduta. Premi ACCEDI CON GOOGLE e poi Play.');
+    }else{
+      setError('Non riesco a caricare questo brano: '+e.message);
+    }
+    setStatus('errore','warn');
+  }finally{loading(false)}
+}
+function formatBytes(n){
+  if(!n) return '';
+  return n>1024*1024?(n/1024/1024).toFixed(1)+' MB':(n/1024).toFixed(0)+' KB';
+}
+async function prefetchNext(){
+  if(!bag.length) return;
+  const t=catalog[bag[0]];
+  if(!t || audioCache.has(t.id) || !accessToken) return;
+  try{await getAudioBlob(t)}catch{}
+}
+async function goNext(){ if(catalog.length) await loadIndex(nextIndex(),true) }
+async function goPrev(){
+  if(history.length>1){
+    history.pop(); const i=history.pop(); await loadIndex(i,true);
+  }
+}
+wavesurfer.on('ready',()=>{
+  waveReady=true;
+  el.dur.textContent=fmt(wavesurfer.getDuration());
+  el.cur.textContent='00:00';
+});
+wavesurfer.on('timeupdate',t=>{el.cur.textContent=fmt(t)});
+wavesurfer.on('play',()=>{el.play.textContent='❚❚';setStatus('in onda','good')});
+wavesurfer.on('pause',()=>{el.play.textContent='▶';if(!isLoading)setStatus('pausa','good')});
+wavesurfer.on('finish',goNext);
+wavesurfer.on('error',e=>{setError('WaveSurfer: '+e);setStatus('errore','warn')});
+
+el.play.addEventListener('click',async()=>{
+  if(!accessToken){await requestToken(true);return}
+  if(!catalog.length){await refreshCatalog();return}
+  if(!current){await loadIndex(nextIndex(),true);return}
+  wavesurfer.playPause();
+});
+el.next.addEventListener('click',goNext);
+el.prev.addEventListener('click',goPrev);
+el.vol.addEventListener('input',e=>{
+  const v=Number(e.target.value); wavesurfer.setVolume(v); localStorage.setItem('tir_radio_vol',String(v));
+});
+const savedVol=Number(localStorage.getItem('tir_radio_vol')||'.82');
+el.vol.value=String(savedVol); wavesurfer.setVolume(savedVol);
+
+el.settingsBtn.addEventListener('click',()=>el.settings.classList.toggle('show'));
+el.saveSettings.addEventListener('click',saveCfg);
+el.copyOrigin.addEventListener('click',async()=>{
+  try{await navigator.clipboard.writeText(location.origin);el.copyOrigin.textContent='COPIATO ✓';setTimeout(()=>el.copyOrigin.textContent='COPIA ORIGIN',1200)}catch{}
+});
+el.googleBtn.addEventListener('click',()=>requestToken(true));
+el.refreshBtn.addEventListener('click',()=>accessToken?refreshCatalog():requestToken(true));
+
+if('mediaSession' in navigator){
+  navigator.mediaSession.setActionHandler('play',()=>wavesurfer.play());
+  navigator.mediaSession.setActionHandler('pause',()=>wavesurfer.pause());
+  navigator.mediaSession.setActionHandler('nexttrack',goNext);
+  navigator.mediaSession.setActionHandler('previoustrack',goPrev);
+}
+
+window.addEventListener('load',async()=>{
+  applyCfg();
+  if('serviceWorker' in navigator && location.protocol==='https:'){
+    navigator.serviceWorker.register('./sw.js').catch(()=>{});
+  }
+  if(cfg().clientId) await initTokenClient();
+});
+</script>
+</body>
+</html>
