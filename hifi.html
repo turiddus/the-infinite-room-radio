@@ -177,7 +177,7 @@ button{-webkit-tap-highlight-color:transparent}
         <div class="marquee">
           <div class="now-label"><span class="live-dot" id="liveDot"></span><span id="statusText">STANDBY</span></div>
           <div class="track-title" id="trackTitle">The Infinite Room Hi-Fi Console</div>
-          <div class="track-meta"><span id="trackMeta">Connect to Google Drive to begin</span><span id="trackCount">0 tracks</span></div>
+          <div class="track-meta"><span id="trackMeta">Connect to Google Drive to begin</span><span id="trackCount">0 tracks</span><span id="channelMode">AUTO CHANNEL</span></div>
         </div>
 
         <div class="meter-row">
@@ -247,7 +247,7 @@ button{-webkit-tap-highlight-color:transparent}
     </div>
   </main>
 
-  <div class="footer">THE INFINITE ROOM · HI-FI CONSOLE EXPERIMENT · V4 PREVIEW</div>
+  <div class="footer">THE INFINITE ROOM · HI-FI CONSOLE · V4.1 · AUTO MONO/STEREO VU</div>
 </div>
 
 <script src="https://accounts.google.com/gsi/client" async defer></script>
@@ -262,7 +262,7 @@ var DRIVE_SCOPE='https://www.googleapis.com/auth/drive.readonly';
 var $=function(id){return document.getElementById(id)};
 var audio=$('audio'), playBtn=$('playBtn'), prevBtn=$('prevBtn'), nextBtn=$('nextBtn');
 var seek=$('seek'), currentTime=$('currentTime'), durationEl=$('duration'), volume=$('volume');
-var trackTitle=$('trackTitle'), trackMeta=$('trackMeta'), trackCount=$('trackCount');
+var trackTitle=$('trackTitle'), trackMeta=$('trackMeta'), trackCount=$('trackCount'), channelMode=$('channelMode');
 var statusText=$('statusText'), liveDot=$('liveDot'), errorEl=$('error'), queueEl=$('queue');
 var syncInfo=$('syncInfo'), authBadge=$('authBadge'), settings=$('settings'), stage=$('stage');
 
@@ -272,6 +272,7 @@ var blobCache=new Map(), cacheOrder=[];
 
 var audioCtx=null, sourceNode=null, spectrumAnalyser=null, leftAnalyser=null, rightAnalyser=null;
 var spectrumData=null, leftTime=null, rightTime=null, visualRAF=0;
+var monoFallback=false, monoEvidence=0, stereoEvidence=0;
 var spectrumCanvas=$('spectrum'), spectrumCtx=spectrumCanvas.getContext('2d');
 var vuLCanvas=$('vuLeft'), vuLCtx=vuLCanvas.getContext('2d');
 var vuRCanvas=$('vuRight'), vuRCtx=vuRCanvas.getContext('2d');
@@ -438,7 +439,7 @@ async function ensureAudioGraph(){
 async function loadIndex(i,autoplay){
   if(isLoading||!catalog.length)return;
   isLoading=true;currentIndex=i;history.push(i);if(history.length>50)history.shift();
-  var t=catalog[i];trackTitle.textContent=t.title;trackMeta.textContent='Loading securely from Google Drive…';setStatus('LOADING TRACK',true);setError('');
+  var t=catalog[i];trackTitle.textContent=t.title;trackMeta.textContent='Loading securely from Google Drive…';channelMode.textContent='ANALYZING CHANNELS';monoFallback=false;monoEvidence=0;stereoEvidence=0;setStatus('LOADING TRACK',true);setError('');
   try{
     var blob=await getBlob(t);
     if(currentObjectUrl)URL.revokeObjectURL(currentObjectUrl);
@@ -510,8 +511,38 @@ function drawVU(ctx,canvas,value,label){
 }
 function animate(){
   drawSpectrum();
-  var l=0,r=0;if(leftAnalyser){l=rms(leftAnalyser,leftTime);r=rms(rightAnalyser,rightTime)}
-  drawVU(vuLCtx,vuLCanvas,l,'LEFT CHANNEL');drawVU(vuRCtx,vuRCanvas,r,'RIGHT CHANNEL');
+  var l=0,r=0;
+  if(leftAnalyser){
+    l=rms(leftAnalyser,leftTime);
+    r=rms(rightAnalyser,rightTime);
+
+    // Browser decoders may expose mono files only on splitter output 0.
+    // Detect that condition over multiple frames; mirror the meter only,
+    // never the audible signal, so playback remains untouched.
+    if(!audio.paused && l>0.0025){
+      if(r < Math.max(0.00035,l*0.035)){
+        monoEvidence++;
+        stereoEvidence=Math.max(0,stereoEvidence-1);
+      }else if(r > 0.0015){
+        stereoEvidence++;
+        monoEvidence=Math.max(0,monoEvidence-2);
+      }
+
+      if(monoEvidence>28) monoFallback=true;
+      if(stereoEvidence>14) monoFallback=false;
+    }
+
+    if(monoFallback){
+      r=l;
+      channelMode.textContent='MONO · DUAL VU';
+    }else if(stereoEvidence>6){
+      channelMode.textContent='STEREO';
+    }else{
+      channelMode.textContent='AUTO CHANNEL';
+    }
+  }
+  drawVU(vuLCtx,vuLCanvas,l,'LEFT CHANNEL');
+  drawVU(vuRCtx,vuRCanvas,r,monoFallback?'MONO MIRROR':'RIGHT CHANNEL');
   visualRAF=requestAnimationFrame(animate);
 }
 audio.addEventListener('timeupdate',function(){
