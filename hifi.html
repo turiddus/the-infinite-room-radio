@@ -270,6 +270,62 @@ var accessToken=null, tokenClient=null, catalog=[], images=[], bag=[], history=[
 var isLoading=false, liveSyncBusy=false, liveTimer=null, currentObjectUrl=null;
 var blobCache=new Map(), cacheOrder=[];
 
+var LIVE_BRIDGE_KEY='tir_live_bridge_url';
+var liveBridgeUrl='';
+var liveBridgeOnline=false;
+
+function normalizeBridgeUrl(value){
+  var v=String(value||'').trim().replace(/\/+$/,'');
+  if(!/^https:\/\/[a-z0-9.-]+(?::\d+)?$/i.test(v))return '';
+  return v;
+}
+function initLiveBridge(){
+  var params=new URLSearchParams(location.search);
+  var requested=params.get('bridge');
+  if(requested==='off'||requested==='clear'){
+    localStorage.removeItem(LIVE_BRIDGE_KEY);
+  }else if(requested){
+    var clean=normalizeBridgeUrl(requested);
+    if(clean)localStorage.setItem(LIVE_BRIDGE_KEY,clean);
+  }
+  liveBridgeUrl=normalizeBridgeUrl(localStorage.getItem(LIVE_BRIDGE_KEY)||'');
+  return liveBridgeUrl;
+}
+async function pushLiveBridge(status){
+  status=status||'ready';
+  if(!liveBridgeUrl||currentIndex<0||!catalog[currentIndex])return false;
+  var t=catalog[currentIndex];
+  var payload={
+    source:'the-infinite-room-radio-hifi',
+    title:t.title||niceName(t.name||''),
+    filename:t.name||'',
+    trackId:t.id||'',
+    status:status,
+    index:currentIndex+1,
+    total:catalog.length,
+    duration:Number(audio.duration||0),
+    currentTime:Number(audio.currentTime||0),
+    artist:'The Darkling Room',
+    station:'24/7 Goth Radio',
+    sentAt:new Date().toISOString()
+  };
+  try{
+    var res=await fetch(liveBridgeUrl+'/now-playing',{
+      method:'POST',
+      mode:'cors',
+      cache:'no-store',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify(payload)
+    });
+    liveBridgeOnline=res.ok;
+    return res.ok;
+  }catch(e){
+    liveBridgeOnline=false;
+    return false;
+  }
+}
+
+
 var audioCtx=null, sourceNode=null, spectrumAnalyser=null, leftAnalyser=null, rightAnalyser=null;
 var spectrumData=null, leftTime=null, rightTime=null, visualRAF=0;
 var monoFallback=false, monoEvidence=0, stereoEvidence=0;
@@ -439,7 +495,7 @@ async function ensureAudioGraph(){
 async function loadIndex(i,autoplay){
   if(isLoading||!catalog.length)return;
   isLoading=true;currentIndex=i;history.push(i);if(history.length>50)history.shift();
-  var t=catalog[i];trackTitle.textContent=t.title;trackMeta.textContent='Loading securely from Google Drive…';channelMode.textContent='ANALYZING CHANNELS';monoFallback=false;monoEvidence=0;stereoEvidence=0;setStatus('LOADING TRACK',true);setError('');
+  var t=catalog[i];trackTitle.textContent=t.title;trackMeta.textContent='Loading securely from Google Drive…';pushLiveBridge('loading');channelMode.textContent='ANALYZING CHANNELS';monoFallback=false;monoEvidence=0;stereoEvidence=0;setStatus('LOADING TRACK',true);setError('');
   try{
     var blob=await getBlob(t);
     if(currentObjectUrl)URL.revokeObjectURL(currentObjectUrl);
@@ -450,7 +506,7 @@ async function loadIndex(i,autoplay){
       audio.addEventListener('loadedmetadata',ok,{once:true});audio.addEventListener('error',bad,{once:true});
     });
     durationEl.textContent=fmt(audio.duration);trackMeta.textContent='Google Drive · '+formatBytes(Number(t.size||blob.size));
-    setStatus('READY',true);updateQueue();setMediaSession(t);
+    setStatus('READY',true);updateQueue();setMediaSession(t);pushLiveBridge('ready');
     if(autoplay){await ensureAudioGraph();await audio.play()}
     prefetchNext();
   }catch(e){setError(e.message==='SESSION_EXPIRED'?'Google session expired. Sign in again.':'Track load failed: '+e.message);setStatus('PLAYBACK ERROR',false)}
@@ -581,9 +637,9 @@ audio.addEventListener('timeupdate',function(){
   currentTime.textContent=fmt(audio.currentTime);durationEl.textContent=fmt(audio.duration);
   if(Number.isFinite(audio.duration)&&audio.duration>0)seek.value=Math.round(audio.currentTime/audio.duration*1000);
 });
-audio.addEventListener('play',function(){playBtn.textContent='❚❚';setStatus('ON AIR',true)});
-audio.addEventListener('pause',function(){playBtn.textContent='▶';if(!audio.ended)setStatus('PAUSED',true)});
-audio.addEventListener('ended',async function(){await syncNewTracks();await goNext()});
+audio.addEventListener('play',function(){playBtn.textContent='❚❚';setStatus('ON AIR',true);pushLiveBridge('playing')});
+audio.addEventListener('pause',function(){playBtn.textContent='▶';if(!audio.ended)setStatus('PAUSED',true);pushLiveBridge('paused')});
+audio.addEventListener('ended',async function(){await pushLiveBridge('ended');await syncNewTracks();await goNext()});
 
 playBtn.addEventListener('click',async function(){
   if(!accessToken)return requestToken();
@@ -616,6 +672,7 @@ if('mediaSession'in navigator){
   navigator.mediaSession.setActionHandler('previoustrack',goPrev);
 }
 window.addEventListener('load',async function(){
+  initLiveBridge();
   applyCfg();
   var sv=Number(localStorage.getItem('tir_radio_vol')||'.82');volume.value=String(sv);audio.volume=sv;volume.dispatchEvent(new Event('input'));
   animate();
