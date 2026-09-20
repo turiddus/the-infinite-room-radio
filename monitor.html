@@ -154,7 +154,7 @@ async function loadManifest(files){
   manifestById=new Map();manifestByName=new Map();manifestLoaded=false;manifestUpdatedAt='';
   const mf=files.find(f=>MANIFEST_NAMES.includes(String(f.name||'').toLowerCase()));
   if(!mf){
-    $('manifestNote').innerHTML='Modalità <b>METADATA ONLY</b>: nessun audio viene scaricato. Il catalogo e la dimensione sono già esatti. Per la durata totale manca ancora <b>darkling_library_manifest.json</b> generato da Shadow.';
+    $('manifestNote').innerHTML='Modalità <b>METADATA ONLY</b>: nessun audio viene scaricato. Il catalogo e la dimensione sono già esatti. Per i metadata tecnici delle singole tracce può essere usato <b>darkling_library_manifest.json</b> generato da Shadow.';
     return
   }
   try{
@@ -187,18 +187,18 @@ function render(){
 
 function updateStats(){
   const total=catalog.length;
-  let secs=0,known=0,size=0,today=0,todaySecs=0;
+  let known=0,size=0,today=0;
   const now=new Date(),y=now.getFullYear(),mo=now.getMonth(),da=now.getDate();
   for(const f of catalog){
     size+=Number(f.size||0);
     const d=durationFor(f);
-    if(d){secs+=d.seconds;known++}
+    if(d){known++}
     const c=new Date(f.createdTime);
     const isToday=c.getFullYear()===y&&c.getMonth()===mo&&c.getDate()===da;
-    if(isToday){today++;if(d)todaySecs+=d.seconds}
+    if(isToday){today++}
   }
   $('tracks').textContent=total.toLocaleString('it-IT');
-  $('today').textContent='+'+today+' oggi'+(todaySecs>0?' · '+fmt(todaySecs):'');
+  $('today').textContent='+'+today+' oggi';
   $('size').textContent=(size/1073741824).toFixed(size>=10737418240?1:2)+' GB';
   $('bar').style.width=(total?Math.round(known/total*100):0)+'%'
 }
