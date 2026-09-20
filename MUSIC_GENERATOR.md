@@ -1,12 +1,12 @@
-# The Infinite Room — AI Music Generator
+# The Darkling Room — AI Music Generator
 
 ## Overview
 
-The Infinite Room AI Music Generator is the production engine behind the project.
+The Darkling Room AI Music Generator is the production engine behind the project.
 
 It is a local desktop workflow designed to generate complete songs with AI and operate for extended periods with minimal manual intervention. Rather than treating each generation as an isolated task, the generator is part of a larger automated music pipeline.
 
-Its output feeds directly into the cloud library used by The Infinite Room WebRadio.
+Its output feeds directly into the cloud library used by The Darkling Room WebRadio.
 
 ## Purpose
 
@@ -33,7 +33,7 @@ Local library
         ↓
 Automatic Google Drive upload
         ↓
-Available to The Infinite Room WebRadio
+Available to The Darkling Room WebRadio
 ```
 
 ## Main capabilities
@@ -112,7 +112,7 @@ The current generation workflow is based on the **YuE / YuE2 music-generation ec
 
 YuE2 is an open music-generation research project associated with Multimodal Art Projection (M-A-P) and collaborators.
 
-The Infinite Room is an independent integration and automation project. It does not claim authorship of the underlying YuE/YuE2 model.
+The Darkling Room is an independent integration and automation project. It does not claim authorship of the underlying YuE/YuE2 model.
 
 ## Design goal
 
@@ -124,10 +124,19 @@ Instead of:
 Generate → Download → Manually organize → Manually play
 ```
 
-The Infinite Room aims for:
+The Darkling Room aims for:
 
 ```text
 Generate → Save → Sync → Discover → Play → Repeat automatically
 ```
 
 That automation layer is the central idea behind the desktop generator.
+
+
+## PRO 3.0 generation core
+
+The generator now treats every accepted track as a durable production job instead of a one-shot GUI action. SQLite stores a stable track identity, generation recipe, seed, model/version provenance, QA result, publication state, persistent creative memory, resumable jobs, and a Drive upload outbox.
+
+The creative recipe varies song form, vocal profile, rhythm, harmony, instrumentation, production profile, narrative perspective, theme, image, motif, energy curve, and rarity tier. A conservative novelty gate rejects exact/reused titles, duplicate lyrics, and very-high lyric overlap without attempting to over-police ordinary genre similarity.
+
+Drive publication is audio-whitelisted: the normal outbox accepts MP3 tracks only, while the canonical `darkling_library_manifest.json` is uploaded through a dedicated manifest path. Logs and arbitrary technical files are not publication candidates.
