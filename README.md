@@ -1,8 +1,8 @@
-# The Infinite Room
+# The Darkling Room
 
 **An autonomous AI music generation and personal web radio system.**
 
-The Infinite Room is a two-part music ecosystem designed to turn local AI music generation into a continuous, private listening experience.
+The Darkling Room is a two-part music ecosystem designed to turn local AI music generation into a continuous, private listening experience.
 
 The system combines a **local AI Music Generator** with a **mobile-first WebRadio powered by Google Drive**. New songs can be generated automatically on a PC, uploaded to a private Drive folder, discovered by the web player, and added to the listening rotation without manually rebuilding a playlist.
 
@@ -19,7 +19,7 @@ Automatic Google Drive upload
         ↓
 Private Drive music library
         ↓
-The Infinite Room WebRadio
+The Darkling Room WebRadio
         ↓
 Live Library + Smart Shuffle
         ↓
@@ -32,7 +32,7 @@ The goal is simple: create a self-feeding personal radio station where the music
 
 ## 1. AI Music Generator
 
-The desktop side of The Infinite Room is a local AI music production environment built around a **YuE2-based generation workflow**.
+The desktop side of The Darkling Room is a local AI music production environment built around a **YuE2-based generation workflow**.
 
 It is designed for long-form autonomous operation rather than one-off generation. The system can continuously create new songs in the background, save the finished audio to the local library, and synchronize completed tracks to Google Drive.
 
@@ -55,7 +55,7 @@ For a more detailed description, see **[MUSIC_GENERATOR.md](./MUSIC_GENERATOR.md
 
 ---
 
-## 2. The Infinite Room WebRadio
+## 2. The Darkling Room WebRadio
 
 The WebRadio is the listening side of the system.
 
@@ -140,7 +140,7 @@ This integration is designed for the **The Darkling Room 24/7 Goth Radio** live 
 
 ## Why this project is different
 
-The Infinite Room is not only a music generator and not only a browser player.
+The Darkling Room is not only a music generator and not only a browser player.
 
 It is a complete automated loop:
 
@@ -223,7 +223,7 @@ https://turiddus.github.io
 
 ## Project philosophy
 
-The Infinite Room was built around three principles:
+The Darkling Room was built around three principles:
 
 **Automation** — generation, synchronization, discovery, and playback should require as little manual intervention as possible.
 
@@ -239,7 +239,7 @@ The music-generation side of this project uses technology based on the **YuE / Y
 
 The web player uses **WaveSurfer.js** for interactive waveform rendering and browser audio control.
 
-The Infinite Room is an independent personal project and is not affiliated with Google, GitHub, Suno, or the YuE/YuE2 research teams.
+The Darkling Room is an independent personal project and is not affiliated with Google, GitHub, Suno, or the YuE/YuE2 research teams.
 
 ---
 
@@ -250,3 +250,10 @@ The Infinite Room is an independent personal project and is not affiliated with 
 Current WebRadio release: **v3.1 Live Library**
 
 The system is currently designed primarily for private/personal use.
+
+
+## PRO 3.0 architecture
+
+The Darkling Room now uses an ordered NOW PLAYING bridge with per-player session IDs and monotonic sequence numbers, persistent Smart Shuffle rotation in the browser, and a metadata-only Drive Library Monitor. The production-side generator uses persistent SQLite creative memory, resumable generation jobs, a Drive upload outbox, canonical metadata manifests, and quality-gated publication.
+
+For 24/7 broadcast, the recommended topology is: **Shadow Studio → local archive/SQLite → Google Drive → broadcast laptop cache/player → local visualizer → OBS/YouTube**. Cloudflare Quick Tunnel is retained only where an HTTPS metadata bridge or TikTok Link source is required; OBS should use the local visualizer URL when possible.
