@@ -5,10 +5,10 @@
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <meta name="theme-color" content="#0a0c11">
   <meta name="color-scheme" content="dark">
-  <meta name="description" content="The Infinite Room — private AI radio powered by Google Drive">
+  <meta name="description" content="The Darkling Room — private AI radio powered by Google Drive">
   <link rel="manifest" href="./manifest.webmanifest">
   <link rel="icon" href="./icon.svg" type="image/svg+xml">
-  <title>The Infinite Room — AI Radio</title>
+  <title>The Darkling Room — AI Radio</title>
   <style>
     :root{
       --bg:#080a0f;--panel:#10151d;--panel2:#151b26;--line:#283243;
@@ -38,7 +38,7 @@
       linear-gradient(135deg,#171227,#0d111b 55%,#261740);
       box-shadow:0 22px 75px rgba(84,43,146,.26),inset 0 0 0 1px rgba(255,255,255,.08);
       position:relative;overflow:hidden;background-size:cover;background-position:center}
-    .cover::after{content:"THE INFINITE ROOM";position:absolute;left:18px;bottom:16px;
+    .cover::after{content:"THE DARKLING ROOM";position:absolute;left:18px;bottom:16px;
       color:rgba(255,255,255,.72);font-size:11px;letter-spacing:.23em;text-shadow:0 1px 8px #000}
     .statusrow{display:flex;justify-content:center;align-items:center;gap:7px;margin-bottom:8px}
     .dot{width:7px;height:7px;border-radius:50%;background:var(--muted)}
@@ -88,7 +88,7 @@
 <body>
 <div class="app">
   <div class="header">
-    <div><div class="eyebrow">Private Google Drive Radio</div><h1>THE INFINITE ROOM</h1><div class="sub" id="headerSub">OAuth · Drive API · Live Library · WaveSurfer</div></div>
+    <div><div class="eyebrow">Private Google Drive Radio</div><h1>THE DARKLING ROOM</h1><div class="sub" id="headerSub">OAuth · Drive API · Live Library · WaveSurfer</div></div>
     <button class="iconbtn" id="settingsBtn" aria-label="Impostazioni">⚙</button>
   </div>
 
@@ -145,7 +145,7 @@
       <div class="queue" id="queue"><div class="help">Il catalogo apparirà dopo l'accesso Google.</div></div>
     </div>
   </div>
-  <div class="footer">THE INFINITE ROOM · Mobile AI Radio v3.1 · Live Library</div>
+  <div class="footer">THE DARKLING ROOM · Mobile AI Radio v3.1 · Live Library</div>
 </div>
 
 <script src="https://accounts.google.com/gsi/client" async defer></script>
@@ -188,6 +188,10 @@ const LIVE_BRIDGE_KEY = 'tir_live_bridge_url';
 let liveBridgeUrl = '';
 let liveBridgeOnline = false;
 let liveBridgeHeartbeat = null;
+const liveBridgeSession=(globalThis.crypto?.randomUUID?.() || ('darkling-'+Date.now()+'-'+Math.random().toString(16).slice(2)));
+let liveBridgeSequence=0;
+let liveBridgeFirst=true;
+const RADIO_ROTATION_KEY='darkling_radio_rotation_v1';
 
 function normalizeBridgeUrl(value=''){
   const v=String(value||'').trim().replace(/\/+$/,'');
@@ -209,18 +213,24 @@ function initLiveBridge(){
 async function pushLiveBridge(status='ready'){
   if(!liveBridgeUrl || !current) return false;
   const payload={
-    source:'the-infinite-room-radio',
+    source:'darkling-room-radio',
+    playerSessionId:liveBridgeSession,
+    sequence:++liveBridgeSequence,
+    takeover:liveBridgeFirst,
+
     title:current.title||niceName(current.name||''),
     filename:current.name||'',
     trackId:current.id||'',
     status,
+    state:String(status||'ready').toUpperCase(),
     index:currentIndex>=0?currentIndex+1:null,
     total:catalog.length,
     duration:waveReady?Number(wavesurfer.getDuration()||0):0,
     currentTime:waveReady?Number(wavesurfer.getCurrentTime()||0):0,
     artist:'The Darkling Room',
     station:'24/7 Goth Radio',
-    sentAt:new Date().toISOString()
+    sentAt:new Date().toISOString(),
+    eventTimestamp:new Date().toISOString()
   };
   try{
     const res=await fetch(liveBridgeUrl+'/now-playing',{
@@ -230,8 +240,9 @@ async function pushLiveBridge(status='ready'){
       headers:{'Content-Type':'application/json'},
       body:JSON.stringify(payload)
     });
-    liveBridgeOnline=res.ok;
-    return res.ok;
+    if(res.status!==409) liveBridgeOnline=res.ok;
+    liveBridgeFirst=false;
+    return res.ok || res.status===409;
   }catch{
     liveBridgeOnline=false;
     return false;
@@ -244,7 +255,7 @@ function startLiveBridgeHeartbeat(){
     if(liveBridgeUrl && current && waveReady && wavesurfer.isPlaying()){
       pushLiveBridge('playing');
     }
-  },1500);
+  },1000);
 }
 
 const wavesurfer = WaveSurfer.create({
@@ -407,7 +418,7 @@ async function refreshCatalog(){
       .map(f=>({...f,title:niceName(f.name)}));
     el.count.textContent=catalog.length+' brani';
     el.headerSub.textContent=`Drive privato · ${catalog.length} tracce · Live Library · WaveSurfer 7.12.12`;
-    refillBag();
+    restoreRotation();
     updateQueue();
     setStatus(catalog.length?'radio pronta':'cartella vuota',catalog.length?'good':'warn');
     if(!current && catalog.length){
@@ -449,7 +460,7 @@ async function syncNewTracks({quiet=true}={}) {
 
     // I nuovi brani entrano subito nella parte iniziale della rotazione.
     const queued=new Set(bag);
-    bag=[...freshIndexes.filter(i=>!queued.has(i)), ...bag];
+    bag=[...freshIndexes.filter(i=>!queued.has(i)), ...bag]; saveRotation();
 
     el.count.textContent=catalog.length+' brani';
     el.headerSub.textContent=`Drive privato · ${catalog.length} tracce · Live Library · WaveSurfer 7.12.12`;
@@ -483,15 +494,38 @@ function shuffle(a){
   }
   return a;
 }
+function saveRotation(){
+  try{
+    localStorage.setItem(RADIO_ROTATION_KEY,JSON.stringify({
+      bag:bag.map(i=>catalog[i]?.id).filter(Boolean),
+      history:history.map(i=>catalog[i]?.id).filter(Boolean).slice(-80),
+      savedAt:Date.now()
+    }));
+  }catch{}
+}
+function restoreRotation(){
+  try{
+    const raw=JSON.parse(localStorage.getItem(RADIO_ROTATION_KEY)||'{}');
+    const idToIndex=new Map(catalog.map((t,i)=>[t.id,i]));
+    const savedBag=(Array.isArray(raw.bag)?raw.bag:[]).map(id=>idToIndex.get(id)).filter(Number.isInteger);
+    const savedHistory=(Array.isArray(raw.history)?raw.history:[]).map(id=>idToIndex.get(id)).filter(Number.isInteger);
+    const used=new Set(savedBag);
+    const missing=catalog.map((_,i)=>i).filter(i=>!used.has(i));
+    bag=[...savedBag,...shuffle(missing)];
+    history=savedHistory.slice(-50);
+    if(!bag.length) refillBag();
+  }catch{ refillBag(); }
+}
 function refillBag(){
   bag=shuffle(catalog.map((_,i)=>i));
   if(history.length && bag.length>1 && bag[0]===history[history.length-1]){
     [bag[0],bag[1]]=[bag[1],bag[0]];
   }
+  saveRotation();
 }
 function nextIndex(){
   if(!bag.length) refillBag();
-  return bag.shift();
+  const i=bag.shift(); saveRotation(); return i;
 }
 function updateQueue(){
   if(!catalog.length){
@@ -549,7 +583,7 @@ async function loadCover(track){
 async function loadIndex(i,autoplay=true){
   if(isLoading || !catalog.length) return;
   currentIndex=i; current=catalog[i];
-  history.push(i); if(history.length>50) history.shift();
+  history.push(i); if(history.length>50) history.shift(); saveRotation();
   pendingAutoplay=autoplay;
   el.title.textContent=current.title;
   pushLiveBridge('loading');
@@ -565,7 +599,7 @@ async function loadIndex(i,autoplay=true){
     if('mediaSession' in navigator){
       const artwork=coverUrl?[{src:coverUrl,sizes:'512x512'}]:[];
       navigator.mediaSession.metadata=new MediaMetadata({
-        title:current.title,artist:'The Infinite Room',album:'AI Radio',artwork
+        title:current.title,artist:'The Darkling Room',album:'AI Radio',artwork
       });
     }
     if(autoplay) await wavesurfer.play();
