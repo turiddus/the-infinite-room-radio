@@ -103,6 +103,41 @@ For technical details, see **[WEB_PLAYER.md](./WEB_PLAYER.md)**.
 
 ---
 
+
+## TikTok / Live Overlay bridge
+
+The WebRadio can publish the currently playing track to the local **Darkling LIVE visualizer**.
+
+When the visualizer is exposed through a Cloudflare Quick Tunnel, open the radio with the tunnel URL in the `bridge` query parameter:
+
+```text
+https://turiddus.github.io/the-infinite-room-radio/?bridge=https%3A%2F%2Fexample.trycloudflare.com
+```
+
+For the Hi-Fi player:
+
+```text
+https://turiddus.github.io/the-infinite-room-radio/hifi.html?bridge=https%3A%2F%2Fexample.trycloudflare.com
+```
+
+The player remembers the latest valid bridge URL in browser local storage and sends track changes to:
+
+```text
+POST <bridge>/now-playing
+```
+
+Payloads include the current title, playback state, track index, catalog size, duration and station metadata. Bridge failures are silent and never interrupt playback.
+
+To forget a saved bridge:
+
+```text
+?bridge=clear
+```
+
+This integration is designed for the **The Darkling Room 24/7 Goth Radio** live workflow and keeps the private Google Drive audio path unchanged.
+
+---
+
 ## Why this project is different
 
 The Infinite Room is not only a music generator and not only a browser player.
