@@ -184,6 +184,60 @@ let isLoading = false;
 let liveSyncBusy = false;
 let liveSyncTimer = null;
 
+const LIVE_BRIDGE_KEY = 'tir_live_bridge_url';
+let liveBridgeUrl = '';
+let liveBridgeOnline = false;
+
+function normalizeBridgeUrl(value=''){
+  const v=String(value||'').trim().replace(/\/+$/,'');
+  if(!/^https:\/\/[a-z0-9.-]+(?::\d+)?$/i.test(v)) return '';
+  return v;
+}
+function initLiveBridge(){
+  const params=new URLSearchParams(location.search);
+  const requested=params.get('bridge');
+  if(requested==='off' || requested==='clear'){
+    localStorage.removeItem(LIVE_BRIDGE_KEY);
+  }else if(requested){
+    const clean=normalizeBridgeUrl(requested);
+    if(clean) localStorage.setItem(LIVE_BRIDGE_KEY,clean);
+  }
+  liveBridgeUrl=normalizeBridgeUrl(localStorage.getItem(LIVE_BRIDGE_KEY)||'');
+  return liveBridgeUrl;
+}
+async function pushLiveBridge(status='ready'){
+  if(!liveBridgeUrl || !current) return false;
+  const payload={
+    source:'the-infinite-room-radio',
+    title:current.title||niceName(current.name||''),
+    filename:current.name||'',
+    trackId:current.id||'',
+    status,
+    index:currentIndex>=0?currentIndex+1:null,
+    total:catalog.length,
+    duration:waveReady?Number(wavesurfer.getDuration()||0):0,
+    currentTime:waveReady?Number(wavesurfer.getCurrentTime()||0):0,
+    artist:'The Darkling Room',
+    station:'24/7 Goth Radio',
+    sentAt:new Date().toISOString()
+  };
+  try{
+    const res=await fetch(liveBridgeUrl+'/now-playing',{
+      method:'POST',
+      mode:'cors',
+      cache:'no-store',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify(payload)
+    });
+    liveBridgeOnline=res.ok;
+    return res.ok;
+  }catch{
+    liveBridgeOnline=false;
+    return false;
+  }
+}
+
+
 const wavesurfer = WaveSurfer.create({
   container: '#waveform',
   height: 88,
@@ -489,6 +543,7 @@ async function loadIndex(i,autoplay=true){
   history.push(i); if(history.length>50) history.shift();
   pendingAutoplay=autoplay;
   el.title.textContent=current.title;
+  pushLiveBridge('loading');
   el.meta.textContent='Scaricamento sicuro da Google Drive…';
   setStatus('caricamento','warn'); setError(''); loading(true);
   updateQueue();
@@ -497,6 +552,7 @@ async function loadIndex(i,autoplay=true){
     await wavesurfer.loadBlob(blob);
     el.meta.textContent=`Google Drive · ${formatBytes(Number(current.size||blob.size))}`;
     setStatus('pronta','good');
+    pushLiveBridge('ready');
     if('mediaSession' in navigator){
       const artwork=coverUrl?[{src:coverUrl,sizes:'512x512'}]:[];
       navigator.mediaSession.metadata=new MediaMetadata({
@@ -534,11 +590,12 @@ wavesurfer.on('ready',()=>{
   waveReady=true;
   el.dur.textContent=fmt(wavesurfer.getDuration());
   el.cur.textContent='00:00';
+  pushLiveBridge('ready');
 });
 wavesurfer.on('timeupdate',t=>{el.cur.textContent=fmt(t)});
-wavesurfer.on('play',()=>{el.play.textContent='❚❚';setStatus('in onda','good')});
-wavesurfer.on('pause',()=>{el.play.textContent='▶';if(!isLoading)setStatus('pausa','good')});
-wavesurfer.on('finish',syncThenNext);
+wavesurfer.on('play',()=>{el.play.textContent='❚❚';setStatus('in onda','good');pushLiveBridge('playing')});
+wavesurfer.on('pause',()=>{el.play.textContent='▶';if(!isLoading)setStatus('pausa','good');pushLiveBridge('paused')});
+wavesurfer.on('finish',async()=>{await pushLiveBridge('ended');await syncThenNext()});
 wavesurfer.on('error',e=>{setError('WaveSurfer: '+e);setStatus('errore','warn')});
 
 el.play.addEventListener('click',async()=>{
@@ -571,6 +628,7 @@ if('mediaSession' in navigator){
 }
 
 window.addEventListener('load',async()=>{
+  initLiveBridge();
   if(!((localStorage.getItem('tir_oauth_client_id')||'').trim())) localStorage.setItem('tir_oauth_client_id', DEFAULT_CLIENT_ID);
   applyCfg();
   if('serviceWorker' in navigator && location.protocol==='https:'){
