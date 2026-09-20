@@ -7,14 +7,17 @@
 <title>The Darkling Room — Library Monitor</title>
 <style>
 :root{--bg:#080a0f;--panel:#11151d;--line:#2b3444;--text:#f5f2ee;--muted:#8e98a8;--accent:#a66cf1;--good:#57d39a;--warn:#f3bd62;--bad:#ff7885}
-*{box-sizing:border-box}body{margin:0;background:radial-gradient(900px 520px at 50% -10%,rgba(166,108,241,.18),transparent 58%),linear-gradient(#090b10,#0d1118 55%,#090b10);color:var(--text);font-family:Inter,system-ui,Segoe UI,Arial,sans-serif;min-height:100vh;padding:18px}
+*{box-sizing:border-box}
+body{margin:0;background:radial-gradient(900px 520px at 50% -10%,rgba(166,108,241,.18),transparent 58%),linear-gradient(#090b10,#0d1118 55%,#090b10);color:var(--text);font-family:Inter,system-ui,Segoe UI,Arial,sans-serif;min-height:100vh;padding:18px}
 .app{max-width:1100px;margin:auto}.head{display:flex;justify-content:space-between;gap:12px;align-items:flex-start;margin-bottom:16px}.eyebrow{font-size:11px;letter-spacing:.23em;color:#ae91d7;text-transform:uppercase}h1{font-size:28px;margin:5px 0 0}.sub{font-size:12px;color:var(--muted);margin-top:7px}
 .actions{display:flex;gap:8px;flex-wrap:wrap}.btn{border:1px solid var(--line);background:#151b25;color:white;padding:10px 14px;border-radius:12px;cursor:pointer}.btn.primary{background:linear-gradient(145deg,#a86bf3,#7b46ca);border:0;font-weight:700}
+.badge{display:inline-flex;align-items:center;gap:7px;border:1px solid #2d4b3e;background:#102019;color:#79dbaa;border-radius:999px;padding:7px 10px;font-size:10px;letter-spacing:.08em;text-transform:uppercase;margin-top:11px}
 .grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}.card{background:rgba(17,21,29,.95);border:1px solid var(--line);border-radius:18px;padding:18px;box-shadow:0 20px 55px rgba(0,0,0,.25)}
 .k{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.14em}.v{font-size:31px;font-weight:800;margin-top:5px}.mini{font-size:11px;color:var(--muted);margin-top:5px}
 .panel{margin-top:14px;background:rgba(17,21,29,.95);border:1px solid var(--line);border-radius:18px;overflow:hidden}.toolbar{padding:13px;border-bottom:1px solid var(--line);display:flex;gap:10px;align-items:center;flex-wrap:wrap}.search{flex:1;min-width:220px;background:#090d13;border:1px solid #303a4b;color:#fff;border-radius:10px;padding:10px 12px}
 .status{font-size:11px;color:var(--muted)}.dot{display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--warn);margin-right:6px}.dot.good{background:var(--good);box-shadow:0 0 11px rgba(87,211,154,.7)}.dot.bad{background:var(--bad)}
-.tablewrap{max-height:62vh;overflow:auto}table{width:100%;border-collapse:collapse;font-size:12px}th{position:sticky;top:0;background:#121823;text-align:left;color:#9ba6b7;font-size:10px;letter-spacing:.1em;text-transform:uppercase;padding:10px;border-bottom:1px solid var(--line)}td{padding:10px;border-bottom:1px solid #202735}td.num{text-align:right;font-variant-numeric:tabular-nums}.new{color:#c9a7f6}.ok{color:#72dca7}.pending{color:#f2bd67}.err{color:#ff8b96}.footer{font-size:10px;color:#697486;text-align:center;padding:14px}.progress{height:4px;background:#1f2632}.progress>span{display:block;height:100%;background:#9b63ea;width:0%;transition:width .25s}
+.tablewrap{max-height:62vh;overflow:auto}table{width:100%;border-collapse:collapse;font-size:12px}th{position:sticky;top:0;background:#121823;text-align:left;color:#9ba6b7;font-size:10px;letter-spacing:.1em;text-transform:uppercase;padding:10px;border-bottom:1px solid var(--line)}td{padding:10px;border-bottom:1px solid #202735}td.num{text-align:right;font-variant-numeric:tabular-nums}.ok{color:#72dca7}.pending{color:#f2bd67}.footer{font-size:10px;color:#697486;text-align:center;padding:14px;line-height:1.55}.progress{height:4px;background:#1f2632}.progress>span{display:block;height:100%;background:#9b63ea;width:0%;transition:width .25s}
+.note{margin-top:14px;border:1px solid #343047;background:#141221;border-radius:14px;padding:12px 14px;color:#bdb5cb;font-size:11px;line-height:1.55}
 @media(max-width:760px){.grid{grid-template-columns:repeat(2,1fr)}h1{font-size:23px}.v{font-size:25px}.head{display:block}.actions{margin-top:12px}}
 </style>
 </head>
@@ -24,7 +27,8 @@
     <div>
       <div class="eyebrow">THE DARKLING ROOM</div>
       <h1>Drive Library Monitor</h1>
-      <div class="sub">Conteggio tracce, durata totale e catalogo in aggiornamento automatico</div>
+      <div class="sub">Catalogo LIVE con statistiche leggere da Google Drive</div>
+      <div class="badge">✓ METADATA ONLY · 0 DOWNLOAD AUDIO</div>
     </div>
     <div class="actions">
       <button class="btn primary" id="login">ACCEDI A GOOGLE</button>
@@ -34,9 +38,14 @@
 
   <div class="grid">
     <div class="card"><div class="k">Tracce totali</div><div class="v" id="tracks">0</div><div class="mini" id="today">+0 oggi</div></div>
-    <div class="card"><div class="k">Durata totale</div><div class="v" id="duration">00:00:00</div><div class="mini" id="analysed">0 / 0 analizzate</div></div>
-    <div class="card"><div class="k">Dimensione libreria</div><div class="v" id="size">0 GB</div><div class="mini">Google Drive</div></div>
+    <div class="card"><div class="k">Durata totale</div><div class="v" id="duration">--:--:--</div><div class="mini" id="analysed">in attesa metadata durata</div></div>
+    <div class="card"><div class="k">Dimensione libreria</div><div class="v" id="size">0 GB</div><div class="mini">solo metadata Drive</div></div>
     <div class="card"><div class="k">Ultimo aggiornamento</div><div class="v" id="last">--:--</div><div class="mini" id="state">non connesso</div></div>
+  </div>
+
+  <div class="note" id="manifestNote">
+    Le durate non vengono più ricavate scaricando gli MP3. Il monitor usa esclusivamente metadata leggeri.
+    Quando sarà presente <b>darkling_library_manifest.json</b> nella cartella Drive, le durate verranno lette automaticamente da quel file.
   </div>
 
   <div class="panel">
@@ -51,7 +60,9 @@
         <tbody id="tbody"></tbody>
       </table>
     </div>
-    <div class="footer">Auto-refresh catalogo ogni 30 secondi · le durate vengono memorizzate nel browser e i nuovi brani vengono analizzati una sola volta</div>
+    <div class="footer">
+      Auto-refresh ogni 30 secondi · vengono lette solo lista file e metadata · nessun MP3/WAV viene scaricato dal monitor.
+    </div>
   </div>
 </div>
 
@@ -61,19 +72,47 @@
 const DRIVE_SCOPE='https://www.googleapis.com/auth/drive.readonly';
 const DEFAULT_FOLDER='1AKSAV7x48gOS9lhCwzSsQDVUXsvmax7c';
 const DEFAULT_CLIENT_ID='1086623877876-k9srrsnpolc12vj4ebm69s9eab6jf92e.apps.googleusercontent.com';
-const CACHE_KEY='darkling_duration_cache_v1';
+const MANIFEST_NAMES=['darkling_library_manifest.json','_darkling_library_manifest.json'];
+const OLD_CACHE_KEY='darkling_duration_cache_v1';
 const $=id=>document.getElementById(id);
-let tokenClient=null,accessToken=null,catalog=[],busy=false,scanBusy=false;
-let durationCache={};
-try{durationCache=JSON.parse(localStorage.getItem(CACHE_KEY)||'{}')||{}}catch{durationCache={}}
+let tokenClient=null,accessToken=null,catalog=[],busy=false;
+let manifestById=new Map(),manifestByName=new Map(),manifestLoaded=false,manifestUpdatedAt='';
+let oldCache={};
+try{oldCache=JSON.parse(localStorage.getItem(OLD_CACHE_KEY)||'{}')||{}}catch{oldCache={}}
 
 function niceName(n=''){return String(n).replace(/^\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}\s*-\s*/,'').replace(/\.(mp3|wav|m4a|flac|ogg|aac)$/i,'').trim()}
 function fmt(sec){sec=Math.max(0,Math.round(Number(sec)||0));const h=Math.floor(sec/3600),m=Math.floor((sec%3600)/60),s=sec%60;return String(h).padStart(2,'0')+':'+String(m).padStart(2,'0')+':'+String(s).padStart(2,'0')}
 function fmtDate(x){try{return new Date(x).toLocaleString('it-IT',{day:'2-digit',month:'2-digit',year:'2-digit',hour:'2-digit',minute:'2-digit'})}catch{return '-'}}
 function setState(t,mode=''){ $('status').textContent=t;$('state').textContent=t;$('dot').className='dot'+(mode?' '+mode:'') }
-function saveCache(){try{localStorage.setItem(CACHE_KEY,JSON.stringify(durationCache))}catch{}}
-function cacheKey(f){return f.id+'|'+(f.modifiedTime||'')}
 function isAudio(f){return /^audio\//.test(f.mimeType||'')||/\.(mp3|wav|m4a|flac|ogg|aac)$/i.test(f.name||'')}
+function cacheKey(f){return f.id+'|'+(f.modifiedTime||'')}
+function escapeHtml(s){return String(s).replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]))}
+
+function parseSeconds(t){
+  if(!t || typeof t!=='object') return null;
+  for(const k of ['duration','duration_seconds','durationSeconds','durationSec','seconds']){
+    const n=Number(t[k]);
+    if(Number.isFinite(n)&&n>=0)return n;
+  }
+  if(typeof t.duration_hms==='string'){
+    const p=t.duration_hms.split(':').map(Number);
+    if(p.every(Number.isFinite)){
+      if(p.length===3)return p[0]*3600+p[1]*60+p[2];
+      if(p.length===2)return p[0]*60+p[1];
+    }
+  }
+  return null
+}
+function durationFor(f){
+  const a=manifestById.get(String(f.id));
+  const b=manifestByName.get(String(f.name||'').toLowerCase());
+  const m=a||b;
+  const ms=parseSeconds(m);
+  if(ms!=null)return {seconds:ms,source:'manifest'};
+  const c=oldCache[cacheKey(f)];
+  if(c && Number.isFinite(Number(c.seconds)))return {seconds:Number(c.seconds),source:'cache'};
+  return null
+}
 
 async function waitGoogle(timeout=12000){return new Promise((res,rej)=>{const s=Date.now();(function t(){if(window.google?.accounts?.oauth2)return res();if(Date.now()-s>timeout)return rej(new Error('Google Identity Services non disponibile'));setTimeout(t,120)})()})}
 async function initAuth(){
@@ -90,7 +129,8 @@ async function api(url){
   if(!r.ok)throw new Error('Drive API '+r.status);
   return r
 }
-async function listAll(){
+
+async function listFolder(){
   let page='',files=[];
   do{
     const u=new URL('https://www.googleapis.com/drive/v3/files');
@@ -98,77 +138,92 @@ async function listAll(){
     u.searchParams.set('pageSize','1000');
     u.searchParams.set('orderBy','createdTime desc');
     u.searchParams.set('fields','nextPageToken,files(id,name,mimeType,size,createdTime,modifiedTime)');
-    u.searchParams.set('supportsAllDrives','true');u.searchParams.set('includeItemsFromAllDrives','true');
+    u.searchParams.set('supportsAllDrives','true');
+    u.searchParams.set('includeItemsFromAllDrives','true');
     if(page)u.searchParams.set('pageToken',page);
-    const d=await (await api(u)).json();files.push(...(d.files||[]));page=d.nextPageToken||''
+    const d=await (await api(u)).json();
+    files.push(...(d.files||[]));page=d.nextPageToken||''
   }while(page);
-  return files.filter(isAudio).map(f=>({...f,title:niceName(f.name)}))
+  return files
 }
+
+async function loadManifest(files){
+  manifestById=new Map();manifestByName=new Map();manifestLoaded=false;manifestUpdatedAt='';
+  const mf=files.find(f=>MANIFEST_NAMES.includes(String(f.name||'').toLowerCase()));
+  if(!mf){
+    $('manifestNote').innerHTML='Modalità <b>METADATA ONLY</b>: nessun audio viene scaricato. Il catalogo e la dimensione sono già esatti. Per la durata totale manca ancora <b>darkling_library_manifest.json</b> generato da Shadow.';
+    return
+  }
+  try{
+    const u='https://www.googleapis.com/drive/v3/files/'+encodeURIComponent(mf.id)+'?alt=media&supportsAllDrives=true';
+    const data=await (await api(u)).json();
+    const rows=Array.isArray(data)?data:(Array.isArray(data.tracks)?data.tracks:[]);
+    for(const t of rows){
+      if(t&&t.id!=null)manifestById.set(String(t.id),t);
+      if(t&&t.name)manifestByName.set(String(t.name).toLowerCase(),t);
+      if(t&&t.filename)manifestByName.set(String(t.filename).toLowerCase(),t)
+    }
+    manifestLoaded=true;
+    manifestUpdatedAt=String(data.updatedAt||data.updated_at||mf.modifiedTime||'');
+    $('manifestNote').innerHTML='✓ Manifest durata collegato · <b>'+rows.length.toLocaleString('it-IT')+'</b> record metadata · nessun file audio scaricato'+(manifestUpdatedAt?' · aggiornato '+escapeHtml(fmtDate(manifestUpdatedAt)):'')+'.'
+  }catch(e){
+    $('manifestNote').innerHTML='Il manifest è presente ma non è leggibile. Il monitor resta comunque in <b>METADATA ONLY</b> e non scarica audio.'
+  }
+}
+
 function render(){
   const q=$('search').value.trim().toLowerCase();
   const rows=catalog.filter(f=>!q||f.title.toLowerCase().includes(q));
   $('tbody').innerHTML=rows.map((f,i)=>{
-    const d=durationCache[cacheKey(f)];
-    const ds=d?.seconds!=null?fmt(d.seconds):(d?.error?'<span class="err">errore</span>':'<span class="pending">analisi…</span>');
+    const d=durationFor(f);
+    const ds=d?'<span class="ok">'+fmt(d.seconds)+'</span>':'<span class="pending">metadata attesa</span>';
     return '<tr><td>'+(i+1)+'</td><td>'+escapeHtml(f.title)+'</td><td class="num">'+ds+'</td><td>'+fmtDate(f.createdTime)+'</td><td class="num">'+((Number(f.size||0)/1048576).toFixed(1))+'</td></tr>'
   }).join('');
   updateStats()
 }
-function escapeHtml(s){return String(s).replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]))}
+
 function updateStats(){
   const total=catalog.length;
-  let secs=0,done=0,size=0;
-  const now=new Date(), y=now.getFullYear(),mo=now.getMonth(),da=now.getDate();
-  let today=0;
+  let secs=0,known=0,size=0,today=0,todaySecs=0;
+  const now=new Date(),y=now.getFullYear(),mo=now.getMonth(),da=now.getDate();
   for(const f of catalog){
     size+=Number(f.size||0);
-    const d=durationCache[cacheKey(f)];
-    if(d?.seconds!=null){secs+=Number(d.seconds);done++}
-    const c=new Date(f.createdTime);if(c.getFullYear()===y&&c.getMonth()===mo&&c.getDate()===da)today++
+    const d=durationFor(f);
+    if(d){secs+=d.seconds;known++}
+    const c=new Date(f.createdTime);
+    const isToday=c.getFullYear()===y&&c.getMonth()===mo&&c.getDate()===da;
+    if(isToday){today++;if(d)todaySecs+=d.seconds}
   }
   $('tracks').textContent=total.toLocaleString('it-IT');
-  $('today').textContent='+'+today+' oggi';
-  $('duration').textContent=fmt(secs);
-  $('analysed').textContent=done+' / '+total+' analizzate';
+  $('today').textContent='+'+today+' oggi'+(todaySecs>0?' · '+fmt(todaySecs):'');
+  $('duration').textContent=known?fmt(secs):'--:--:--';
+  $('analysed').textContent=known+' / '+total+' con durata metadata';
   $('size').textContent=(size/1073741824).toFixed(size>=10737418240?1:2)+' GB';
-  $('bar').style.width=(total?Math.round(done/total*100):0)+'%'
+  $('bar').style.width=(total?Math.round(known/total*100):0)+'%'
 }
-async function durationOf(f){
-  const key=cacheKey(f);if(durationCache[key])return;
-  try{
-    setState('Analizzo: '+f.title,'');
-    const u='https://www.googleapis.com/drive/v3/files/'+encodeURIComponent(f.id)+'?alt=media&supportsAllDrives=true';
-    const blob=await (await api(u)).blob();
-    const obj=URL.createObjectURL(blob);
-    const sec=await new Promise((resolve,reject)=>{
-      const a=document.createElement('audio');let timer=setTimeout(()=>{cleanup();reject(new Error('timeout'))},30000);
-      function cleanup(){clearTimeout(timer);a.removeAttribute('src');a.load();URL.revokeObjectURL(obj)}
-      a.preload='metadata';a.onloadedmetadata=()=>{const x=a.duration;cleanup();Number.isFinite(x)?resolve(x):reject(new Error('durata'))};a.onerror=()=>{cleanup();reject(new Error('decode'))};a.src=obj
-    });
-    durationCache[key]={seconds:sec,at:Date.now()};saveCache()
-  }catch(e){durationCache[key]={error:String(e.message||e),at:Date.now()};saveCache()}
-  updateStats();render()
-}
-async function scanMissing(){
-  if(scanBusy)return;scanBusy=true;
-  try{
-    const missing=catalog.filter(f=>!durationCache[cacheKey(f)]);
-    for(let i=0;i<missing.length;i++){await durationOf(missing[i])}
-    setState('Monitoraggio attivo','good')
-  }finally{scanBusy=false}
-}
+
 async function refreshCatalog(){
-  if(!accessToken||busy)return;busy=true;setState('Aggiorno catalogo…','');
+  if(!accessToken||busy)return;
+  busy=true;setState('Aggiorno metadata…','');
   try{
-    catalog=await listAll();$('last').textContent=new Date().toLocaleTimeString('it-IT',{hour:'2-digit',minute:'2-digit'});
-    render();setState('Catalogo aggiornato','good');scanMissing()
-  }catch(e){if(e.message!=='SESSION_EXPIRED')setState('Errore Drive','bad')}
-  finally{busy=false}
+    const files=await listFolder();
+    catalog=files.filter(isAudio).map(f=>({...f,title:niceName(f.name)}));
+    await loadManifest(files);
+    $('last').textContent=new Date().toLocaleTimeString('it-IT',{hour:'2-digit',minute:'2-digit'});
+    render();
+    setState(manifestLoaded?'Monitoraggio + durate attivo':'Monitoraggio leggero attivo','good')
+  }catch(e){
+    if(e.message!=='SESSION_EXPIRED')setState('Errore Drive','bad')
+  }finally{busy=false}
 }
+
 $('login').onclick=async()=>{if(!tokenClient)await initAuth();tokenClient.requestAccessToken({prompt:'consent'})};
 $('refresh').onclick=()=>refreshCatalog();
 $('search').oninput=render;
-window.addEventListener('load',async()=>{try{await initAuth();setState('Pronto: accedi a Google','')}catch{setState('Errore inizializzazione','bad')}setInterval(()=>{if(accessToken)refreshCatalog()},30000)});
+window.addEventListener('load',async()=>{
+  try{await initAuth();setState('Pronto: accedi a Google','')}catch{setState('Errore inizializzazione','bad')}
+  setInterval(()=>{if(accessToken)refreshCatalog()},30000)
+});
 })();
 </script>
 </body>
