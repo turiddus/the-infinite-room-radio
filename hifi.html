@@ -273,6 +273,7 @@ var blobCache=new Map(), cacheOrder=[];
 var LIVE_BRIDGE_KEY='tir_live_bridge_url';
 var liveBridgeUrl='';
 var liveBridgeOnline=false;
+var liveBridgeHeartbeat=null;
 
 function normalizeBridgeUrl(value){
   var v=String(value||'').trim().replace(/\/+$/,'');
@@ -325,6 +326,14 @@ async function pushLiveBridge(status){
   }
 }
 
+function startLiveBridgeHeartbeat(){
+  if(liveBridgeHeartbeat)return;
+  liveBridgeHeartbeat=setInterval(function(){
+    if(liveBridgeUrl&&currentIndex>=0&&!audio.paused&&!audio.ended){
+      pushLiveBridge('playing');
+    }
+  },1500);
+}
 
 var audioCtx=null, sourceNode=null, spectrumAnalyser=null, leftAnalyser=null, rightAnalyser=null;
 var spectrumData=null, leftTime=null, rightTime=null, visualRAF=0;
@@ -673,6 +682,7 @@ if('mediaSession'in navigator){
 }
 window.addEventListener('load',async function(){
   initLiveBridge();
+  startLiveBridgeHeartbeat();
   applyCfg();
   var sv=Number(localStorage.getItem('tir_radio_vol')||'.82');volume.value=String(sv);audio.volume=sv;volume.dispatchEvent(new Event('input'));
   animate();
