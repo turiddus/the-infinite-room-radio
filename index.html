@@ -187,6 +187,7 @@ let liveSyncTimer = null;
 const LIVE_BRIDGE_KEY = 'tir_live_bridge_url';
 let liveBridgeUrl = '';
 let liveBridgeOnline = false;
+let liveBridgeHeartbeat = null;
 
 function normalizeBridgeUrl(value=''){
   const v=String(value||'').trim().replace(/\/+$/,'');
@@ -237,6 +238,14 @@ async function pushLiveBridge(status='ready'){
   }
 }
 
+function startLiveBridgeHeartbeat(){
+  if(liveBridgeHeartbeat) return;
+  liveBridgeHeartbeat=setInterval(()=>{
+    if(liveBridgeUrl && current && waveReady && wavesurfer.isPlaying()){
+      pushLiveBridge('playing');
+    }
+  },1500);
+}
 
 const wavesurfer = WaveSurfer.create({
   container: '#waveform',
@@ -629,6 +638,7 @@ if('mediaSession' in navigator){
 
 window.addEventListener('load',async()=>{
   initLiveBridge();
+  startLiveBridgeHeartbeat();
   if(!((localStorage.getItem('tir_oauth_client_id')||'').trim())) localStorage.setItem('tir_oauth_client_id', DEFAULT_CLIENT_ID);
   applyCfg();
   if('serviceWorker' in navigator && location.protocol==='https:'){
