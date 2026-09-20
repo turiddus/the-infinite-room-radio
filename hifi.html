@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#0b0a08">
-<title>The Infinite Room — Hi-Fi Console</title>
+<title>The Darkling Room — Hi-Fi Console</title>
 <link rel="manifest" href="./manifest.webmanifest">
 <link rel="icon" href="./icon.svg" type="image/svg+xml">
 <style>
@@ -157,7 +157,7 @@ button{-webkit-tap-highlight-color:transparent}
   <header class="topbar">
     <div class="brand">
       <div class="eyebrow">Private AI Hi-Fi Radio</div>
-      <h1>THE INFINITE ROOM</h1>
+      <h1>THE DARKLING ROOM</h1>
       <div class="sub" id="headerSub">Experimental Hi-Fi Console · Google Drive · Live Library</div>
     </div>
     <div class="top-actions"><button class="icon-btn" id="settingsBtn" title="Settings">⚙</button></div>
@@ -176,7 +176,7 @@ button{-webkit-tap-highlight-color:transparent}
       <section class="deck">
         <div class="marquee">
           <div class="now-label"><span class="live-dot" id="liveDot"></span><span id="statusText">STANDBY</span></div>
-          <div class="track-title" id="trackTitle">The Infinite Room Hi-Fi Console</div>
+          <div class="track-title" id="trackTitle">The Darkling Room Hi-Fi Console</div>
           <div class="track-meta"><span id="trackMeta">Connect to Google Drive to begin</span><span id="trackCount">0 tracks</span><span id="channelMode">AUTO CHANNEL</span></div>
         </div>
 
@@ -247,7 +247,7 @@ button{-webkit-tap-highlight-color:transparent}
     </div>
   </main>
 
-  <div class="footer">THE INFINITE ROOM · HI-FI CONSOLE · V4.2 · MUSICAL SPECTRUM · AUTO MONO/STEREO VU</div>
+  <div class="footer">THE DARKLING ROOM · HI-FI CONSOLE · V4.2 · MUSICAL SPECTRUM · AUTO MONO/STEREO VU</div>
 </div>
 
 <script src="https://accounts.google.com/gsi/client" async defer></script>
@@ -274,6 +274,10 @@ var LIVE_BRIDGE_KEY='tir_live_bridge_url';
 var liveBridgeUrl='';
 var liveBridgeOnline=false;
 var liveBridgeHeartbeat=null;
+var liveBridgeSession=(globalThis.crypto&&globalThis.crypto.randomUUID?globalThis.crypto.randomUUID():('darkling-'+Date.now()+'-'+Math.random().toString(16).slice(2)));
+var liveBridgeSequence=0;
+var liveBridgeFirst=true;
+var RADIO_ROTATION_KEY='darkling_radio_hifi_rotation_v1';
 
 function normalizeBridgeUrl(value){
   var v=String(value||'').trim().replace(/\/+$/,'');
@@ -297,18 +301,24 @@ async function pushLiveBridge(status){
   if(!liveBridgeUrl||currentIndex<0||!catalog[currentIndex])return false;
   var t=catalog[currentIndex];
   var payload={
-    source:'the-infinite-room-radio-hifi',
+    source:'darkling-room-radio-hifi',
+    playerSessionId:liveBridgeSession,
+    sequence:++liveBridgeSequence,
+    takeover:liveBridgeFirst,
+
     title:t.title||niceName(t.name||''),
     filename:t.name||'',
     trackId:t.id||'',
     status:status,
+    state:String(status||'ready').toUpperCase(),
     index:currentIndex+1,
     total:catalog.length,
     duration:Number(audio.duration||0),
     currentTime:Number(audio.currentTime||0),
     artist:'The Darkling Room',
     station:'24/7 Goth Radio',
-    sentAt:new Date().toISOString()
+    sentAt:new Date().toISOString(),
+    eventTimestamp:new Date().toISOString()
   };
   try{
     var res=await fetch(liveBridgeUrl+'/now-playing',{
@@ -318,8 +328,9 @@ async function pushLiveBridge(status){
       headers:{'Content-Type':'application/json'},
       body:JSON.stringify(payload)
     });
-    liveBridgeOnline=res.ok;
-    return res.ok;
+    if(res.status!==409)liveBridgeOnline=res.ok;
+    liveBridgeFirst=false;
+    return res.ok||res.status===409;
   }catch(e){
     liveBridgeOnline=false;
     return false;
@@ -332,7 +343,7 @@ function startLiveBridgeHeartbeat(){
     if(liveBridgeUrl&&currentIndex>=0&&!audio.paused&&!audio.ended){
       pushLiveBridge('playing');
     }
-  },1500);
+  },1000);
 }
 
 var audioCtx=null, sourceNode=null, spectrumAnalyser=null, leftAnalyser=null, rightAnalyser=null;
@@ -374,11 +385,33 @@ function shuffle(a){
   for(var i=a.length-1;i>0;i--){var j=Math.floor(Math.random()*(i+1));var t=a[i];a[i]=a[j];a[j]=t}
   return a;
 }
+function saveRotation(){
+  try{
+    localStorage.setItem(RADIO_ROTATION_KEY,JSON.stringify({
+      bag:bag.map(function(i){return catalog[i]&&catalog[i].id}).filter(Boolean),
+      history:history.map(function(i){return catalog[i]&&catalog[i].id}).filter(Boolean).slice(-80),
+      savedAt:Date.now()
+    }));
+  }catch(e){}
+}
+function restoreRotation(){
+  try{
+    var raw=JSON.parse(localStorage.getItem(RADIO_ROTATION_KEY)||'{}');
+    var idToIndex=new Map(catalog.map(function(t,i){return [t.id,i]}));
+    var savedBag=(Array.isArray(raw.bag)?raw.bag:[]).map(function(id){return idToIndex.get(id)}).filter(Number.isInteger);
+    var savedHistory=(Array.isArray(raw.history)?raw.history:[]).map(function(id){return idToIndex.get(id)}).filter(Number.isInteger);
+    var used=new Set(savedBag);
+    var missing=catalog.map(function(_,i){return i}).filter(function(i){return !used.has(i)});
+    bag=savedBag.concat(shuffle(missing));history=savedHistory.slice(-50);
+    if(!bag.length)refillBag();
+  }catch(e){refillBag()}
+}
 function refillBag(){
   bag=shuffle(catalog.map(function(_,i){return i}));
   if(history.length && bag.length>1 && bag[0]===history[history.length-1]){var t=bag[0];bag[0]=bag[1];bag[1]=t}
+  saveRotation();
 }
-function nextIndex(){if(!bag.length)refillBag();return bag.shift()}
+function nextIndex(){if(!bag.length)refillBag();var i=bag.shift();saveRotation();return i}
 function updateQueue(){
   if(!catalog.length){queueEl.innerHTML='<div class="notice">No tracks available.</div>';return}
   if(!bag.length)refillBag();
@@ -454,7 +487,7 @@ async function refreshCatalog(){
     images=files.filter(function(f){return /^image\//.test(f.mimeType||'')});
     catalog=files.filter(function(f){return /^audio\//.test(f.mimeType||'')||/\.(mp3|wav|m4a|flac|ogg)$/i.test(f.name||'')})
       .map(function(f){f.title=niceName(f.name);return f});
-    refillBag();updateQueue();trackCount.textContent=catalog.length+' tracks';
+    restoreRotation();updateQueue();trackCount.textContent=catalog.length+' tracks';
     syncInfo.textContent='Catalog loaded: '+catalog.length+' tracks.';
     $('headerSub').textContent='Hi-Fi Console · Drive private · '+catalog.length+' tracks · Live Library';
     setStatus(catalog.length?'RADIO READY':'FOLDER EMPTY',!!catalog.length);
@@ -473,7 +506,7 @@ async function syncNewTracks(){
       .map(function(f){f.title=niceName(f.name);return f});
     if(!fresh.length){syncInfo.textContent='Live sync: library already current.';return 0}
     var start=catalog.length;catalog.push.apply(catalog,fresh);
-    var idx=fresh.map(function(_,n){return start+n});shuffle(idx);bag=idx.concat(bag);
+    var idx=fresh.map(function(_,n){return start+n});shuffle(idx);bag=idx.concat(bag);saveRotation();
     trackCount.textContent=catalog.length+' tracks';updateQueue();
     $('headerSub').textContent='Hi-Fi Console · Drive private · '+catalog.length+' tracks · Live Library';
     syncInfo.textContent='Live sync: +'+fresh.length+' new track'+(fresh.length===1?'':'s')+'.';
@@ -503,7 +536,7 @@ async function ensureAudioGraph(){
 }
 async function loadIndex(i,autoplay){
   if(isLoading||!catalog.length)return;
-  isLoading=true;currentIndex=i;history.push(i);if(history.length>50)history.shift();
+  isLoading=true;currentIndex=i;history.push(i);if(history.length>50)history.shift();saveRotation();
   var t=catalog[i];trackTitle.textContent=t.title;trackMeta.textContent='Loading securely from Google Drive…';pushLiveBridge('loading');channelMode.textContent='ANALYZING CHANNELS';monoFallback=false;monoEvidence=0;stereoEvidence=0;setStatus('LOADING TRACK',true);setError('');
   try{
     var blob=await getBlob(t);
@@ -533,7 +566,7 @@ async function goPrev(){
 }
 function setMediaSession(t){
   if(!('mediaSession'in navigator))return;
-  navigator.mediaSession.metadata=new MediaMetadata({title:t.title,artist:'The Infinite Room',album:'Private AI Radio'});
+  navigator.mediaSession.metadata=new MediaMetadata({title:t.title,artist:'The Darkling Room',album:'Private AI Radio'});
 }
 function rms(analyser,arr){
   analyser.getFloatTimeDomainData(arr);var sum=0;
