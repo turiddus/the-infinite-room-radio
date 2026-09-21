@@ -78,7 +78,7 @@ const DEFAULT_CLIENT_ID='1086623877876-k9srrsnpolc12vj4ebm69s9eab6jf92e.apps.goo
 const MANIFEST_NAMES=['darkling_library_manifest.json','_darkling_library_manifest.json'];
 const OLD_CACHE_KEY='darkling_duration_cache_v1';
 const $=id=>document.getElementById(id);
-let tokenClient=null,accessToken=null,catalog=[],busy=false;
+let tokenClient=null,accessToken=null,catalog=[],busy=false,renewTimer=null,pending=null,pResolve=null,pReject=null;
 let manifestById=new Map(),manifestByName=new Map(),manifestLoaded=false,manifestUpdatedAt='';
 let oldCache={};
 try{oldCache=JSON.parse(localStorage.getItem(OLD_CACHE_KEY)||'{}')||{}}catch{oldCache={}}
@@ -118,17 +118,37 @@ function durationFor(f){
 }
 
 async function waitGoogle(timeout=12000){return new Promise((res,rej)=>{const s=Date.now();(function t(){if(window.google?.accounts?.oauth2)return res();if(Date.now()-s>timeout)return rej(new Error('Google Identity Services non disponibile'));setTimeout(t,120)})()})}
+function scheduleRenew(ttl){if(renewTimer)clearTimeout(renewTimer);renewTimer=setTimeout(()=>acquire(false).catch(()=>setState('Rinnovo Google in attesa','')),Math.max(30000,(Number(ttl||3600)-300)*1000))}
 async function initAuth(){
   await waitGoogle();
   tokenClient=google.accounts.oauth2.initTokenClient({
     client_id:DEFAULT_CLIENT_ID,scope:DRIVE_SCOPE,
-    callback:async r=>{if(r.error){setState('Accesso Google fallito','bad');return}accessToken=r.access_token;$('login').textContent='GOOGLE CONNESSO';setState('Drive connesso','good');await refreshCatalog()},
-    error_callback:()=>setState('OAuth annullato','bad')
+    callback:r=>{
+      if(r.error){if(pReject)pReject(new Error(r.error_description||r.error));pending=null;pResolve=pReject=null;return}
+      accessToken=r.access_token;
+      scheduleRenew(Math.max(60,Number(r.expires_in||3600)));
+      $('login').textContent='GOOGLE CONNESSO';
+      setState('Drive connesso','good');
+      if(pResolve)pResolve(accessToken);pending=null;pResolve=pReject=null
+    },
+    error_callback:e=>{if(pReject)pReject(new Error(e?.type||'OAuth error'));pending=null;pResolve=pReject=null}
   })
 }
-async function api(url){
-  const r=await fetch(url,{headers:{Authorization:'Bearer '+accessToken}});
-  if(r.status===401){accessToken=null;setState('Sessione scaduta','bad');throw new Error('SESSION_EXPIRED')}
+async function acquire(interactive=false){
+  if(pending)return pending;
+  if(!tokenClient)await initAuth();
+  pending=new Promise((res,rej)=>{pResolve=res;pReject=rej});
+  tokenClient.requestAccessToken({prompt:interactive?'consent':''});
+  return pending
+}
+async function api(url,retried=false){
+  if(!accessToken)await acquire(false);
+  let r=await fetch(url,{headers:{Authorization:'Bearer '+accessToken}});
+  if(r.status===401&&!retried){
+    accessToken=null;
+    try{await acquire(false);return api(url,true)}
+    catch{setState('Riconnessione Google richiesta','bad');throw new Error('SESSION_EXPIRED')}
+  }
   if(!r.ok)throw new Error('Drive API '+r.status);
   return r
 }
@@ -204,8 +224,9 @@ function updateStats(){
 }
 
 async function refreshCatalog(){
-  if(!accessToken||busy)return;
+  if(busy)return;
   busy=true;setState('Aggiorno metadata…','');
+  try{if(!accessToken)await acquire(false)}catch{busy=false;setState('Riconnessione Google richiesta','bad');return}
   try{
     const files=await listFolder();
     catalog=files.filter(isAudio).map(f=>({...f,title:niceName(f.name)}));
@@ -218,7 +239,7 @@ async function refreshCatalog(){
   }finally{busy=false}
 }
 
-$('login').onclick=async()=>{if(!tokenClient)await initAuth();tokenClient.requestAccessToken({prompt:'consent'})};
+$('login').onclick=async()=>{try{await acquire(true);await refreshCatalog()}catch{setState('Accesso Google fallito','bad')}};
 $('refresh').onclick=()=>refreshCatalog();
 $('search').oninput=render;
 window.addEventListener('load',async()=>{
