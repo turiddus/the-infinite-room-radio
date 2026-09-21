@@ -67,7 +67,7 @@ It is a lightweight, mobile-first web application hosted on **GitHub Pages**. In
 
 ### Current version
 
-**Mobile AI Radio v3.1 — Live Library**
+**Mobile AI Radio v3.2 — 24/7 OAuth Auto-Renew**
 
 ### Main features
 
@@ -247,7 +247,7 @@ The Darkling Room is an independent personal project and is not affiliated with 
 
 **Active personal project**
 
-Current WebRadio release: **v3.1 Live Library**
+Current WebRadio release: **v3.2 24/7 OAuth Auto-Renew**
 
 The system is currently designed primarily for private/personal use.
 
@@ -257,3 +257,8 @@ The system is currently designed primarily for private/personal use.
 The Darkling Room now uses an ordered NOW PLAYING bridge with per-player session IDs and monotonic sequence numbers, persistent Smart Shuffle rotation in the browser, and a metadata-only Drive Library Monitor. The production-side generator uses persistent SQLite creative memory, resumable generation jobs, a Drive upload outbox, canonical metadata manifests, and quality-gated publication.
 
 For 24/7 broadcast, the recommended topology is: **Shadow Studio → local archive/SQLite → Google Drive → broadcast laptop cache/player → local visualizer → OBS/YouTube**. Cloudflare Quick Tunnel is retained only where an HTTPS metadata bridge or TikTok Link source is required; OBS should use the local visualizer URL when possible.
+
+
+## 24/7 OAuth reliability
+
+WebRadio v3.2 renews Google Drive OAuth access tokens automatically before expiry using the lifetime returned by Google. If a Drive request receives HTTP 401, the standard player, Hi-Fi player, and library monitor perform one silent token renewal and retry the request. Manual sign-in remains the fallback only when Google itself requires renewed user interaction or consent. No Client Secret or paid backend is introduced.
