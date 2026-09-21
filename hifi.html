@@ -267,6 +267,7 @@ var statusText=$('statusText'), liveDot=$('liveDot'), errorEl=$('error'), queueE
 var syncInfo=$('syncInfo'), authBadge=$('authBadge'), settings=$('settings'), stage=$('stage');
 
 var accessToken=null, tokenClient=null, catalog=[], images=[], bag=[], history=[], currentIndex=-1;
+var tokenRenewTimer=null, tokenRequestResolve=null, tokenRequestReject=null, tokenRequestPromise=null, tokenExpiresAt=0;
 var isLoading=false, liveSyncBusy=false, liveTimer=null, currentObjectUrl=null;
 var blobCache=new Map(), cacheOrder=[];
 
@@ -441,25 +442,53 @@ async function initTokenClient(){
   tokenClient=google.accounts.oauth2.initTokenClient({
     client_id:c.clientId,
     scope:DRIVE_SCOPE,
-    callback:async function(resp){
-      if(resp.error){setError('OAuth: '+(resp.error_description||resp.error));return}
+    callback:function(resp){
+      if(resp.error){
+        var e=new Error(resp.error_description||resp.error);
+        if(tokenRequestReject)tokenRequestReject(e);
+        tokenRequestResolve=tokenRequestReject=null;tokenRequestPromise=null;return;
+      }
       accessToken=resp.access_token;
+      var ttl=Math.max(60,Number(resp.expires_in||3600));
+      tokenExpiresAt=Date.now()+ttl*1000;
       authBadge.textContent='connected';setStatus('DRIVE CONNECTED',true);
-      await refreshCatalog();
+      scheduleTokenRenewal(ttl);
+      if(tokenRequestResolve)tokenRequestResolve(accessToken);
+      tokenRequestResolve=tokenRequestReject=null;tokenRequestPromise=null;
     },
-    error_callback:function(err){setError('OAuth popup: '+((err&&err.type)||'unknown error'))}
+    error_callback:function(err){
+      var e=new Error('OAuth popup: '+((err&&err.type)||'unknown error'));
+      if(tokenRequestReject)tokenRequestReject(e);
+      tokenRequestResolve=tokenRequestReject=null;tokenRequestPromise=null;
+    }
   });
+}
+function scheduleTokenRenewal(ttl){
+  if(tokenRenewTimer)clearTimeout(tokenRenewTimer);
+  var delay=Math.max(30000,(Number(ttl||3600)-300)*1000);
+  tokenRenewTimer=setTimeout(function(){acquireToken(false).catch(function(e){console.warn('[Darkling OAuth] silent renewal failed:',e.message);setStatus('TOKEN RENEWAL WAITING',false)})},delay);
+}
+async function acquireToken(interactive){
+  if(tokenRequestPromise)return tokenRequestPromise;
+  if(!tokenClient)await initTokenClient();
+  tokenRequestPromise=new Promise(function(resolve,reject){tokenRequestResolve=resolve;tokenRequestReject=reject});
+  try{tokenClient.requestAccessToken({prompt:interactive?'consent':''})}
+  catch(e){if(tokenRequestReject)tokenRequestReject(e);tokenRequestResolve=tokenRequestReject=null;tokenRequestPromise=null;throw e}
+  return tokenRequestPromise;
 }
 async function requestToken(){
   setError('');
-  if(!tokenClient)await initTokenClient();
-  tokenClient.requestAccessToken({prompt:'consent'});
+  try{await acquireToken(true);await refreshCatalog()}catch(e){setError('OAuth: '+e.message);throw e}
 }
-async function apiFetch(url,opts){
-  if(!accessToken)throw new Error('AUTH_REQUIRED');
+async function apiFetch(url,opts,retried){
+  if(!accessToken)await acquireToken(false);
   opts=opts||{};var h=new Headers(opts.headers||{});h.set('Authorization','Bearer '+accessToken);
   var res=await fetch(url,Object.assign({},opts,{headers:h}));
-  if(res.status===401){accessToken=null;authBadge.textContent='expired';setStatus('SESSION EXPIRED',false);throw new Error('SESSION_EXPIRED')}
+  if(res.status===401&&!retried){
+    accessToken=null;tokenExpiresAt=0;
+    try{await acquireToken(false);return apiFetch(url,opts,true)}
+    catch(e){authBadge.textContent='expired';setStatus('SESSION RECONNECT REQUIRED',false);throw new Error('SESSION_EXPIRED')}
+  }
   return res;
 }
 async function listFolderFiles(){
