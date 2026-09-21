@@ -145,7 +145,7 @@
       <div class="queue" id="queue"><div class="help">Il catalogo apparirà dopo l'accesso Google.</div></div>
     </div>
   </div>
-  <div class="footer">THE DARKLING ROOM · Mobile AI Radio v3.1 · Live Library</div>
+  <div class="footer">THE DARKLING ROOM · Mobile AI Radio v3.2 · Live Library</div>
 </div>
 
 <script src="https://accounts.google.com/gsi/client" async defer></script>
@@ -183,6 +183,11 @@ let cacheOrder = [];
 let isLoading = false;
 let liveSyncBusy = false;
 let liveSyncTimer = null;
+let tokenRenewTimer = null;
+let tokenRequestResolve = null;
+let tokenRequestReject = null;
+let tokenRequestPromise = null;
+let tokenExpiresAt = 0;
 
 const LIVE_BRIDGE_KEY = 'tir_live_bridge_url';
 let liveBridgeUrl = '';
@@ -307,7 +312,8 @@ function applyCfg(){
 function saveCfg(){
   localStorage.setItem('tir_oauth_client_id', el.clientId.value.trim());
   localStorage.setItem('tir_drive_folder_id', el.folderId.value.trim()||DEFAULT_FOLDER);
-  tokenClient=null; accessToken=null;
+  tokenClient=null; accessToken=null; tokenExpiresAt=0;
+  if(tokenRenewTimer){clearTimeout(tokenRenewTimer);tokenRenewTimer=null;}
   setError('');
   el.settings.classList.remove('show');
   initTokenClient();
@@ -330,49 +336,71 @@ async function initTokenClient(){
     tokenClient=google.accounts.oauth2.initTokenClient({
       client_id:c.clientId,
       scope:DRIVE_SCOPE,
-      callback:async(resp)=>{
+      callback:(resp)=>{
         if(resp.error){
-          setError('Google OAuth: '+(resp.error_description||resp.error));
-          setStatus('accesso fallito','warn'); return;
+          const err=new Error(resp.error_description||resp.error);
+          if(tokenRequestReject) tokenRequestReject(err);
+          tokenRequestResolve=tokenRequestReject=null; tokenRequestPromise=null;
+          return;
         }
         accessToken=resp.access_token;
+        const ttl=Math.max(60,Number(resp.expires_in||3600));
+        tokenExpiresAt=Date.now()+ttl*1000;
         sessionStorage.setItem('tir_oauth_granted','1');
         setStatus('drive connesso','good');
         el.signin.classList.remove('show');
-        await refreshCatalog();
+        scheduleTokenRenewal(ttl);
+        if(tokenRequestResolve) tokenRequestResolve(accessToken);
+        tokenRequestResolve=tokenRequestReject=null; tokenRequestPromise=null;
       },
       error_callback:(err)=>{
-        setError('OAuth popup: '+(err?.type||'errore sconosciuto'));
-        setStatus('accesso fallito','warn');
+        const e=new Error('OAuth popup: '+(err?.type||'errore sconosciuto'));
+        if(tokenRequestReject) tokenRequestReject(e);
+        tokenRequestResolve=tokenRequestReject=null; tokenRequestPromise=null;
       }
     });
     return true;
-  }catch(e){
-    setError(e.message);
-    return false;
+  }catch(e){ setError(e.message); return false; }
+}
+function scheduleTokenRenewal(ttlSeconds){
+  if(tokenRenewTimer) clearTimeout(tokenRenewTimer);
+  const delay=Math.max(30000,(Number(ttlSeconds||3600)-300)*1000);
+  tokenRenewTimer=setTimeout(async()=>{
+    try{ await acquireToken(false); }
+    catch(e){
+      console.warn('[Darkling OAuth] silent renewal failed:',e.message);
+      setStatus('rinnovo Google in attesa','warn');
+    }
+  },delay);
+}
+async function acquireToken(interactive=false){
+  if(tokenRequestPromise) return tokenRequestPromise;
+  if(!tokenClient && !(await initTokenClient())) throw new Error('OAUTH_INIT_FAILED');
+  tokenRequestPromise=new Promise((resolve,reject)=>{tokenRequestResolve=resolve;tokenRequestReject=reject});
+  try{ tokenClient.requestAccessToken({prompt:interactive?'consent':''}); }
+  catch(e){
+    if(tokenRequestReject) tokenRequestReject(e);
+    tokenRequestResolve=tokenRequestReject=null;tokenRequestPromise=null;
+    throw e;
   }
+  return tokenRequestPromise;
 }
 async function requestToken(interactive=true){
   setError('');
   const c=cfg();
-  if(!c.clientId){
-    el.settings.classList.add('show');
-    setError('Inserisci prima il Google OAuth Client ID.');
-    return;
-  }
-  if(!tokenClient && !(await initTokenClient())) return;
-  tokenClient.requestAccessToken({prompt: interactive ? 'consent' : ''});
+  if(!c.clientId){el.settings.classList.add('show');setError('Inserisci prima il Google OAuth Client ID.');return}
+  try{await acquireToken(interactive);await refreshCatalog()}
+  catch(e){if(interactive){setError('Google OAuth: '+e.message);setStatus('accesso fallito','warn')}throw e}
 }
-async function apiFetch(url, opts={}){
-  if(!accessToken) throw new Error('AUTH_REQUIRED');
+async function apiFetch(url,opts={},_retried=false){
+  if(!accessToken) await acquireToken(false);
   const headers=new Headers(opts.headers||{});
   headers.set('Authorization','Bearer '+accessToken);
-  const res=await fetch(url,{...opts,headers});
-  if(res.status===401){
-    accessToken=null;
-    el.signin.classList.add('show');
-    setStatus('sessione scaduta','warn');
-    throw new Error('SESSION_EXPIRED');
+  let res=await fetch(url,{...opts,headers});
+  if(res.status===401&&!_retried){
+    accessToken=null;tokenExpiresAt=0;
+    try{await acquireToken(false);return apiFetch(url,opts,true)}
+    catch(e){el.signin.classList.add('show');setStatus('sessione Google da riconnettere','warn');throw new Error('SESSION_EXPIRED')}
   }
   return res;
 }
@@ -409,7 +437,7 @@ function keyName(name){
   return niceName(name).toLowerCase().replace(/[^a-z0-9à-ž]+/gi,' ').trim();
 }
 async function refreshCatalog(){
-  if(!accessToken){await requestToken(false);return}
+  if(!accessToken){try{await acquireToken(false)}catch{el.signin.classList.add('show');return}}
   loading(true); setError(''); setStatus('sincronizzazione','warn');
   try{
     const files=await listFolderFiles();
